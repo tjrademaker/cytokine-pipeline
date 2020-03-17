@@ -194,10 +194,6 @@ def main():
 		# Revert to original orientation of dataframe
 		df=df.unstack("Time").droplevel(level=0,axis=1)
 
-		if "Peptide2" in df.index.names:
-			print(filename)
-			sys.exit()
-
 		# Print changes
 		if df.index.names != tmp.index.names:
 			print(file)

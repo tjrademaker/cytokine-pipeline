@@ -15,7 +15,6 @@ from mpl_toolkits.mplot3d import Axes3D
 
 
 time_scale=20
-filepath="output/analysis/integral/"
 cytokines="IFNg+IL-2+IL-6+IL-17A+TNFa"
 
 tcellnumbers=["100k","30k","10k","3k"]
@@ -204,7 +203,7 @@ def plot_features_in_3d_space(params):
 if __name__ == "__main__":
 
 	# Read data
-	df_all_params=pd.read_pickle(filepath+"all_fit_params.pkl")
+	df_all_params=pd.read_pickle("output/all_fit_params.pkl")
 	plot_correlating_variables(df_all_params)
 
 	# Extract features v0*t0, v0/t0, Dr/r from fitted parameters

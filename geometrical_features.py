@@ -1,5 +1,7 @@
 """Compute geometrical features from latent space coordinates"""
 
+### TODO this one does not work with new dataframe setup
+
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -16,44 +18,23 @@ colors=np.array([prop_cycle.by_key()["color"]]*2).flatten()
 sizes=[50,30,20,10]
 markers = ["o","s","X", '^', '*', 'D', 'P','v']*3
 
+peptides=["N4","Q4","T4","V4","G4","E1"][::-1]
+concentrations=["1uM","100nM","10nM","1nM"]
+tcellnumbers=["100k"]
 
 def main():
 
 	#Set parameters
-	features="integral" #integral+concentration+derivative"
-	filepath="output/analysis/"+features
+	features="integral"
+	cytokines="IFNg+IL-2+IL-6+IL-17A+TNFa"
 
-	df_WT_proj=pickle.load(open(filepath+"/dataframes/proj-WT.pkl","rb"))
+	df_WT_proj=pd.read_pickle("output/proj-WT.pkl")
 	df_WT_geom=extract_features(df_WT_proj,mutant="WT")
-	pickle.dump(df_WT_geom,open(filepath+"/dataframes/geom-WT.pkl","wb"))
+	df_WT_geom.to_pickle("output/geom-WT.pkl")
 
-	plot_geometric_features(df_WT_geom,
-		path=filepath,
-		mutant="WT",
-		norm_level="Absolute",
-		plot_style="averaged")
+	plot_geometric_features(df_WT_geom,norm_level="Absolute",plot_style="averaged")
 
-	#TODO: fix duplicate entries in "Antagonism","ITAMDeficient"
-	#TODO: when P14 and F5 have more concentrations, add them here (think about markers)
-	mutants=["NaiveVsExpandedTCells"]#["P14,F5"]#["20"]#"NaiveVsExpandedTCells"]#"20","21","22","23","CD25Mutant","NaiveVsExpandedTCells","TCellNumber","Tumor"]
-	# test_timeseries=["TCellTypeComparison_OT1,P14,F5_Timeseries_2"]
-
-	for mutant in mutants:
-		#Load dataframes with projection in latent space
-		df_mut_proj=pickle.load(open(filepath+"/dataframes/proj-%s.pkl"%mutant,"rb"))
-
-		#Compute geometrical features and save dataframe
-		df_mut_geom=extract_features(df_mut_proj,mutant=mutant)	
-		pickle.dump(df_mut_geom,open(filepath+"/dataframes/geom-%s.pkl"%mutant,"wb"))
-
-		for norm_level in ["Absolute","Relative"]:#TODO: include "Normalized"
-			for plot_style in ["color","style"]:
-				plot_geometric_features(df_mut_geom,
-					path=filepath,
-					mutant=mutant,
-					norm_level=norm_level,
-					plot_style=plot_style)
-
+	plt.show()
 
 def custom_fit(group):
 

@@ -96,7 +96,6 @@ def fit_all_curves(df):
 
 
 time_scale=20
-filepath="output/analysis/integral/"
 cytokines="IFNg+IL-2+IL-6+IL-17A+TNFa"
 
 tcellnumbers=["100k","30k","10k","3k"]
@@ -116,19 +115,16 @@ peptide_dict={pep:i for pep,i in zip(peptides,range(len(peptides)))}
 
 df_all_params=pd.DataFrame([],columns=["TCellNumber","Data","Peptide","Concentration","v_0","t_0","theta"])
 
-tcellnumber_experiments=["PeptideComparison_OT1_Timeseries_"+num for num in ["21","22","23"]]+["TCellNumber_OT1_Timeseries_7","Activation_TCellNumber_1"]
-#,"TCellNumber_1"]
-
-for exp in tcellnumber_experiments:
+for exp in ["PeptideComparison_OT1_Timeseries_"+num for num in ["21","22","23"]]+["TCellNumber_OT1_Timeseries_7","Activation_TCellNumber_1","TCellNumber_1"]:
 	print(exp)
 
 	# Load data
-	df=pd.read_hdf("output/dataframes/%s.hdf"%exp)
+	df=pd.read_hdf("data/processed/%s.hdf"%exp)
 	df=df.loc[:,("integral",cytokines.split("+"))]
-	df_min,df_max=pd.read_pickle(filepath+"/train-min-max.pkl")
+	df_min,df_max=pd.read_pickle("output/train-min-max.pkl")
 	df=(df - df_min)/(df_max - df_min)
 
-	mlp=pickle.load(open(filepath+"mlp.pkl", "rb"))
+	mlp=pickle.load(open("output/mlp.pkl", "rb"))
 
 	# Project on latent space
 	df=pd.DataFrame(np.dot(df,mlp.coefs_[0]),index=df.index,columns=["Node 1","Node 2"])
@@ -179,5 +175,5 @@ for exp in tcellnumber_experiments:
 				style="Processing type",dashes=["",(1,1)],col=df.index.names[0])
 	# plt.savefig("figures/fitting/compare-splines-with-fit-%s.pdf"%exp)
 
-df_all_params.to_pickle(filepath+"all_fit_params.pkl")
+df_all_params.to_pickle("output/all_fit_params.pkl")
 plt.show()

@@ -8,7 +8,7 @@ Features:
 - extract features (integrals, concentrations & derivatives)
 
 @author:tjrademaker
-February 2020
+March 2020
 
 based off a module by
 @author:frbourassa
@@ -338,7 +338,7 @@ def master_looper(folder="data/final",plot=False):
         if file.endswith(".pkl"):
             print(file[41:-10])
             [data, data_log, data_smooth, df]=process_file(folder,file)
-            df.to_hdf("output/dataframes/"+file[41:-10]+".hdf", key="Features", mode="w")
+            df.to_hdf("data/processed/"+file[41:-10]+".hdf", key="Features", mode="w")
 
     if plot:
         plot_splines(data_log,df)

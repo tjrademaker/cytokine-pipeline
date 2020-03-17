@@ -16,64 +16,29 @@ sizes=[1.5,1.2,0.9,0.6]
 dashes = ["", (4, 1.5), (1, 1),(3, 1, 1.5, 1), (5, 1, 1, 1),(5, 1, 2, 1, 2, 1)]*3
 markers = ["o","s","X", '^', '*', 'D', 'P','v']*3
 
+peptides=["N4","Q4","T4","V4","G4","E1"][::-1]
+concentrations=["1uM","100nM","10nM","1nM"]
+tcellnumbers=["100k"]
 
 def main():
 
 	#Set parameters
-	features="integral"#integral+concentration+derivative"
-	filepath="output/analysis/"+features
+	features="integral"
 	cytokines="IFNg+IL-2+IL-6+IL-17A+TNFa"
 
 	#Load files
-	df_min,df_max=pickle.load(open(filepath+"/train-min-max.pkl","rb"))
-	df_WT=pickle.load(open(filepath+"/train.pkl","rb"))
+	df_min,df_max=pickle.load(open("output/train-min-max.pkl","rb"))
+	df_WT=pd.read_pickle("output/train.pkl")
 
-	mlp=pickle.load(open(filepath+"/mlp.pkl","rb"))
+	mlp=pickle.load(open("output/mlp.pkl","rb"))
 	#Project WT on latent space
 	df_WT_proj=pd.DataFrame(np.dot(df_WT,mlp.coefs_[0])+mlp.intercepts_[0],index=df_WT.index,columns=["Node 1","Node 2"])
-	pickle.dump(df_WT_proj,open(filepath+"/dataframes/proj-WT.pkl","wb"))
+	df_WT_proj.to_pickle("output/proj-WT.pkl")
 
-	project_in_latent_space(df_WT_proj,
-		path=filepath,
-		mutant="WT",
-		plot_style="color"
-		)
+	project_in_latent_space(df_WT_proj,mutant="WT")
 
-	mutants=[]#["P14,F5"]#["20","21","22","23","Antagonism","CD25Mutant","F5","ITAMDeficient","NaiveVsExpandedTCells","P14","TCellNumber","Tumor"]
-	# test_timeseries=["AntagonismComparison_OT1,P14,F5_Timeseries_2"]
+	plt.show()
 
-	for mutant in mutants:
-
-		#Import mutant data
-		df_mut=import_mutant_output(mutant)
-		# df_mut=df_mut.loc[(test_timeseries),:]
-
-		# Remove levels that are not needed for plotting
-		level_name,peptides,concentrations = plot_parameters(mutant)
-		for level in df_mut.index.names:
-			if level not in [level_name,"Peptide","Concentration","Time"]:
-				df_mut = df_mut.droplevel(level=level)
-
-		df_mut=df_mut.loc[(slice(None),peptides,concentrations,slice(None)),(features.split("+"),cytokines.split("+"))]
-
-		# #Update integral
-		df_mut["integral"]=update_integral(df_mut.integral)
-
-		#Normalize mutant data
-		df_mut=(df_mut - df_min)/(df_max - df_min)
-
-		#Compute projections in latent space
-		df_mut_proj=pd.DataFrame(np.dot(df_mut,mlp.coefs_[0])+mlp.intercepts_[0],index=df_mut.index,columns=["Node 1","Node 2"])
-
-		#Save dataframes with projection in latent space
-		pickle.dump(df_mut_proj,open(filepath+"/dataframes/proj-%s.pkl"%mutant,"wb"))
-
-		# Plot latent space
-		for plot_style in ["color","style"]: 
-			project_in_latent_space(df_mut_proj,
-				path=filepath,
-				mutant=mutant,
-				plot_style=plot_style)
 
 '''
 - Loop over data
@@ -124,7 +89,7 @@ def import_mutant_output(mutant):
 		df_full (dataframe): the dataframe with processed cytokine data
 	"""
 
-	folder="output/dataframes/"
+	folder="data/processed/"
 
 	for file in os.listdir(folder):
 
@@ -141,12 +106,6 @@ def import_mutant_output(mutant):
 
 	return df_full
 
-def update_integral(df):
-    df=df.unstack("Time").stack("Cytokine")
-    for time in df.columns:
-        df[time]-=np.nansum((df.diff(axis=1)[df.diff(axis=1)<0]).loc[:,np.arange(1,time+1)],axis=1)
-    return df.stack("Time").unstack("Cytokine")
-
 
 def project_in_latent_space(df,**kwargs):
 
@@ -156,20 +115,12 @@ def project_in_latent_space(df,**kwargs):
 	data=df.reset_index()
 	data=data.iloc[::5,:]
 
-	if kwargs["plot_style"] == "color":
-		h=sns.relplot(data=data,x="Node 1",y="Node 2",kind='line',sort=False,mew=0,ms=4,dashes=dashes,markers=markers,
-		hue="Peptide",hue_order=peptides,palette=colors[:len(data["Peptide"].unique())],col=level_name,#col_order=["100k","30k","10k","3k"],
+	h=sns.relplot(data=data,x="Node 1",y="Node 2",kind='line',sort=False,mew=0,ms=4,dashes=dashes,markers=markers,
+		hue="Peptide",hue_order=peptides,#palette=colors[:len(peptides)],
 		size="Concentration",size_order=concentrations,sizes=sizes,
-		style=level_name)
+		style="TCellNumber",style_order=tcellnumbers)
 
-	elif kwargs["plot_style"] == "style":
-		h=sns.relplot(data=data,x="Node 1",y="Node 2",kind='line',sort=False,mew=0,ms=4,dashes=dashes,markers=markers,
-		style="Peptide",style_order=peptides,
-		size="Concentration",size_order=concentrations,sizes=sizes,
-		hue=level_name)
 	[ax.set(xticks=[],yticks=[],xlabel="Node 1",ylabel="Node 2") for ax in h.axes.flat]
-
-	plt.savefig("%s/latent-space/%s/%s.pdf"%tuple(kwargs.values()),bbox_inches="tight")
 
 
 def plot_parameters(mutant):
