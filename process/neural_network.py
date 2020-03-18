@@ -32,7 +32,7 @@ def main():
 
 	#Import data
 	df=import_WT_output()
-	df.to_pickle("output/all-WT.pkl")
+	df.to_pickle("../output/all-WT.pkl")
 	print(df)
 
 	# TODO: Add GUI instead of manually selecting levels
@@ -67,7 +67,7 @@ def import_WT_output():
 		df_full (dataframe): the dataframe with processed cytokine data
 	"""
 
-	folder="data/processed/"
+	folder="../data/processed/"
 
 	naive_pairs={
 					"ActivationType": "Naive",
