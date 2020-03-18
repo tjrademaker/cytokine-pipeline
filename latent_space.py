@@ -32,7 +32,7 @@ def main():
 
 	mlp=pickle.load(open("output/mlp.pkl","rb"))
 	#Project WT on latent space
-	df_WT_proj=pd.DataFrame(np.dot(df_WT,mlp.coefs_[0])+mlp.intercepts_[0],index=df_WT.index,columns=["Node 1","Node 2"])
+	df_WT_proj=pd.DataFrame(np.dot(df_WT,mlp.coefs_[0]),index=df_WT.index,columns=["Node 1","Node 2"])
 	df_WT_proj.to_pickle("output/proj-WT.pkl")
 
 	project_in_latent_space(df_WT_proj,mutant="WT")
