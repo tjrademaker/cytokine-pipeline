@@ -37,16 +37,18 @@ def main():
 
 	# TODO: Add GUI instead of manually selecting levels
 
-	df=df.loc[(train_timeseries,tcellnumbers,peptides,concentrations,times),(features.split("+"),cytokines.split("+"))]
+	df=df.loc[(train_timeseries,tcellnumbers,peptides,concentrations,times),(slice(None),cytokines.split("+"))]
 
 	# df=df[~ (((df.index.get_level_values("Peptide") == "V4")  & (df.index.get_level_values("Concentration") == "1nM")) 
 	# 	| ((df.index.get_level_values("Peptide") == "T4")  & (df.index.get_level_values("Concentration") == "1nM"))
 	# 	| ((df.index.get_level_values("Peptide") == "Q4")  & (df.index.get_level_values("Concentration") == "1nM")))]
 
 	#Save min/max and normalize data
-	pickle.dump([df.min(),df.max()],open("output/train-min-max.pkl","wb"))
+	pickle.dump([df.min(),df.max()],open("../output/train-min-max.pkl","wb"))
 	df=(df - df.min())/(df.max()-df.min())
-	df.to_pickle("output/train.pkl")
+
+	df=df.loc[:,features]
+	df.to_pickle("../output/train.pkl")
 
 	#Extract times and set classes
 	y=df.index.get_level_values("Peptide").map(peptide_dict)
@@ -56,7 +58,12 @@ def main():
 		solver="adam",random_state=90,learning_rate="adaptive",alpha=0.01).fit(df,y)
 
 	score=mlp.score(df,y); print("Training score %.1f"%(100*score));
-	pickle.dump(mlp,open("output/mlp.pkl","wb"))
+	pickle.dump(mlp,open("../output/mlp.pkl","wb"))
+
+	# df_WT_proj=pd.DataFrame(np.dot(df_WT,mlp.coefs_[0]),index=df_WT.index,columns=["Node 1","Node 2"])
+
+	# TODO GUI for plotting df_WT_proj
+
 
 	# plot_weights(mlp,cytokines.split("+"),peptides,filepath=filepath)
 

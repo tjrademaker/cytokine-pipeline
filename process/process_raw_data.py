@@ -328,7 +328,7 @@ def process_file(folder,file, **kwargs):
     df["integral"] = update_integral_features(df.integral)
 
 
-    # Return data in various stages of processing
+    # Return data at various stages of processing
     return [data, data_log, data_smooth, df]
 
 
@@ -347,9 +347,7 @@ def master_looper(folder="../data/final",plot=False):
 
 
 """
-TODO 
-- Plot semi-processed (flagged missing data, log transformed and normalized) raw data and splines
-- Add functionality to call what folders to run from command line
+TODO: Plot semi-processed (flagged missing data, log transformed and normalized) raw data and splines
 """
 
 
