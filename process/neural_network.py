@@ -37,7 +37,7 @@ def main():
 
 	# TODO: Add GUI instead of manually selecting levels
 
-	df=df.loc[(train_timeseries,tcellnumbers,peptides,concentrations,times),(slice(None),cytokines.split("+"))]
+	df=df.loc[(train_timeseries,tcellnumbers,peptides,concentrations,times),(features,cytokines.split("+"))]
 
 	# df=df[~ (((df.index.get_level_values("Peptide") == "V4")  & (df.index.get_level_values("Concentration") == "1nM")) 
 	# 	| ((df.index.get_level_values("Peptide") == "T4")  & (df.index.get_level_values("Concentration") == "1nM"))
@@ -46,8 +46,6 @@ def main():
 	#Save min/max and normalize data
 	pickle.dump([df.min(),df.max()],open("../output/train-min-max.pkl","wb"))
 	df=(df - df.min())/(df.max()-df.min())
-
-	df=df.loc[:,features]
 	df.to_pickle("../output/train.pkl")
 
 	#Extract times and set classes

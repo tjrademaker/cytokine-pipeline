@@ -46,29 +46,44 @@ def main():
 
 
 '''
-def import_mutant_output_new():
-	"""Import processed cytokine data and add level that concerns test
 
-	Args:
-		mutant (str): name of file with mutant data.
-			Has to be one of the following "Tumor","NaiveVsExpandedTCells","TCellNumber","Antagonism","CD25Mutant","ITAMDeficient"
+def import_WT_output():
+	"""Import splines from wildtype naive OT-1 T cells by looping through all datasets
 
 	Returns:
 		df_full (dataframe): the dataframe with processed cytokine data
 	"""
 
-	# TODO do something smart with "tests"
-	tests=["CD25Mutant","ITAMDeficient","Tumor","TCellNumber","Activation","CAR","TCellType","Macrophages"]
+	folder="../data/processed/"
 
-	folder="output/dataframes/"
+	naive_pairs={
+					"ActivationType": "Naive",
+					"Antibody": "None",
+					"APC": "B6",
+					"APCType": "Splenocyte",
+					"CARConstruct":"None",
+					"CAR_Antigen":"None",
+					"Genotype": "WT",
+					"IFNgPulseConcentration":"None",
+					"TCellType": "OT1",
+					"TLR_Agonist":"None",
+					"TumorCellNumber":"0k"
+				}
 
 	for file in os.listdir(folder):
 
-		if (mutant not in file) | (".hdf" not in file):
+		if ".hdf" not in file:
 			continue
 
-		df=pd.read_hdf(folder + "/" + file)
-		df=pd.concat([df],keys=[file[18:-4]],names=["Data"]) #add experiment name as multiindex level 
+		df=pd.read_hdf(folder + file)
+		mask=[True] * len(df)
+		
+		for index_name in df.index.names:
+			if index_name in naive_pairs.keys():
+				mask=np.array(mask) & np.array([index == naive_pairs[index_name] for index in df.index.get_level_values(index_name)])
+				df=df.droplevel([index_name])
+
+		df=pd.concat([df[mask]],keys=[file[:-4]],names=["Data"]) #add experiment name as multiindex level 
 
 		if "df_full" not in locals():
 			df_full=df.copy()
@@ -81,9 +96,9 @@ def import_mutant_output_new():
 def import_mutant_output(mutant):
 	"""Import processed cytokine data from an experiment that contains mutant data
 
-	Args:
-		mutant (str): name of file with mutant data.
-			Has to be one of the following "Tumor","NaiveVsExpandedTCells","TCellNumber","Antagonism","CD25Mutant","ITAMDeficient"
+    Args:
+            mutant (str): name of file with mutant data.
+                    Has to be one of the following "Tumor","Activation","TCellNumber","Macrophages","CAR","TCellType","CD25Mutant","ITAMDeficient"
 
 	Returns:
 		df_full (dataframe): the dataframe with processed cytokine data
@@ -97,12 +112,12 @@ def import_mutant_output(mutant):
 			continue
 
 		df=pd.read_hdf(folder + "/" + file)
-		df=pd.concat([df],keys=[file[18:-4]],names=["Data"]) #add experiment name as multiindex level 
+		df=pd.concat([df],keys=[file[:-4]],names=["Data"]) #add experiment name as multiindex level 
 
 		if "df_full" not in locals():
 			df_full=df.copy()
 		else:
-			df_full=pd.concat((df_full,df))
+			df_full=pd.concat([df_full,df])
 
 	return df_full
 

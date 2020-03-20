@@ -1,3 +1,4 @@
+#! /usr/bin/env python3
 """Adapt dataframes to processing pipeline
 
 - Update filenames, level names and level values
@@ -124,14 +125,18 @@ def main():
 			df["IFNgPulseConcentration"][df.APCType=="Tumor"]=[conc for conc in df.Concentration[df.APCType=="Tumor"]]
 			df["Concentration"][df.APCType=="Tumor"]="None"
 		elif filename in tumor_timeseries[2]:
+			df["APC"]="B16"
 			df["IFNgPulseConcentration"]=[conc[:3] if "IFNg" in conc else "None" for conc in df.Concentration]
 			df["Concentration"]=["None" if "IFNg" in conc else conc for conc in df.Concentration]
+
 		elif filename in tumor_timeseries[3]:
-			df["Concentration"]="None"
-			df["TumorCellNumber"]=df.TumorCellNumber.str.replace("K","k")
-			df["TCellNumber"]=df.TCellNumber.str.replace("K","k")
-			df["APCType"]="Tumor"
 			df["APC"]="B16"
+			df["APCType"]="Tumor"
+			df["Concentration"]="None"			
+			df["TCellNumber"]=df.TCellNumber.str.replace("K","k")
+			df["TumorCellNumber"]=df.TumorCellNumber.str.replace("K","k")
+			df=df[df.TumorCellNumber=="17k"]
+			df.drop("TumorCellNumber",axis=1,inplace=True)
 
 		# Add activation type
 		elif filename in activation_timeseries:
@@ -152,11 +157,9 @@ def main():
 
 		# Make Peptide2 level name compatible with None
 		elif filename in tcelltype_timeseries:
-			print(df.columns)
 			df["Peptide2"]=df.Peptide2.str.replace("NotApplicable","None")
 			df=df[df["Peptide2"]=="None"]
 			df.drop("Peptide2",axis=1,inplace=True)
-			print(df.columns)
 
 		# TODO swap A2/Y3 in Pepcomp20
 
@@ -170,14 +173,17 @@ def main():
 				df["Peptide"]=(df["Peptide"]+df["Peptide2"]).str.replace("None","")
 				df["Peptide"][df.Peptide == ""]="None"
 				df["TCellType"]= ["P14" if peptide in ["A3V","AV","gp33WT"] else "OT1" for peptide in df.Peptide]
+				df=df[["Cytokine","TCellType","Peptide","Concentration","Time",0]]
 
-			elif "Experiment" in df.columns:
-				df=df[df.Experiment == "Calibration"]
-			elif "Agonist_Antagonist_Locations" in df.columns:
-				df=df[df.Agonist_Antagonist_Locations == "NotApplicable"]
 			else:
-				df=df[df.Antagonist == "None"]
-			df=df[["Cytokine","Peptide","Concentration","Time",0]]
+
+				if "Experiment" in df.columns:
+					df=df[df.Experiment == "Calibration"]
+				elif "Agonist_Antagonist_Locations" in df.columns:
+					df=df[df.Agonist_Antagonist_Locations == "NotApplicable"]
+				else:
+					df=df[df.Antagonist == "None"]
+				df=df[["Cytokine","Peptide","Concentration","Time",0]]
 
 		# Add TCellNumber level
 		if "TCellNumber" not in df.columns:
