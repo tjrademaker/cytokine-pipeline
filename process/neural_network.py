@@ -13,10 +13,9 @@ if sys_pf == 'darwin':
 from sklearn import neural_network
 import matplotlib.pyplot as plt
 import tkinter as tk
+from tkinter import ttk
 sys.path.insert(0, '../gui/plotting')
 from plottingGUI import GUI_Start,createLabelDict,checkUncheckAllButton,selectLevelsPage 
-sys.path.insert(0, '../')
-from latent_space import project_in_latent_space
 
 idx = pd.IndexSlice
 
@@ -24,7 +23,7 @@ idx = pd.IndexSlice
 class InputDatasetSelectionPage(tk.Frame):
     def __init__(self, master, dataset):
         tk.Frame.__init__(self, master)
-
+        
         global trueLabelDict
         trueLabelDict = {}
         trueLabelDict = createLabelDict(dataset)
@@ -47,7 +46,7 @@ class InputDatasetSelectionPage(tk.Frame):
         e2.insert(0, '23-72')
 
         labelWindow = tk.Frame(self)
-        labelWindow.pack(side=tk.TOP,padx=10,fill=tk.X,expand=True)
+        labelWindow.pack(side=tk.TOP,padx=10,fill=tk.X,expand=True) 
         
         l1 = tk.Label(labelWindow, text='Parameters:',pady=10, font='Helvetica 18 bold').grid(row=0,column = 0,columnspan=len(trueLabelDict)*6)
         levelValueCheckButtonList = []
@@ -103,7 +102,7 @@ class InputDatasetSelectionPage(tk.Frame):
                 includeLevelValueList.append(tempLevelValueList)
                 i+=1
 
-            df = dataset.loc[tuple(includeLevelValueList),:].unstack(['Cytokine','Feature']).loc[:,'value']
+            df = dataset.loc[tuple(includeLevelValueList),:].unstack(['Feature','Cytokine']).loc[:,'value']
             
             trainingSetName = e1.get()
             #Save min/max and normalize data
@@ -132,15 +131,13 @@ class InputDatasetSelectionPage(tk.Frame):
             df_WT_proj=pd.DataFrame(np.dot(df,mlp.coefs_[0]),index=df.index,columns=["Node 1","Node 2"])
             df_WT_proj.to_pickle("../output/proj-WT-"+trainingSetName+".pkl")
 
-            proj_df = project_in_latent_space(df_WT_proj,mutant="WT")
-            master.switch_frame(selectLevelsPage,proj_df)
-
+            proj_df = df_WT_proj.iloc[::5,:]
+            master.switch_frame(selectLevelsPage,proj_df,InputDatasetSelectionPage)
 
         buttonWindow = tk.Frame(self)
         buttonWindow.pack(side=tk.TOP,pady=10)
         
         tk.Button(buttonWindow, text="OK",command=lambda: collectInputs(dataset)).grid(row=maxNumLevelValues+4,column=0)
-        #tk.Button(buttonWindow, text="Back",command=lambda: master.switch_frame(selectLevelsPage)).grid(row=maxNumLevelValues+4,column=1)
         tk.Button(buttonWindow, text="Quit",command=lambda: quit()).grid(row=maxNumLevelValues+4,column=2)
 
 def main():
@@ -171,7 +168,7 @@ def main():
     
     #print(df.loc[idx[],:])
     # TODO: Add GUI instead of manually selecting levels
-    app = GUI_Start(DatasetSelectionPage,df)
+    app = GUI_Start(InputDatasetSelectionPage,df)
     app.mainloop()
 
     df=df.loc[(train_timeseries,tcellnumbers,peptides,concentrations,times),(features.split("+"),cytokines.split("+"))]
@@ -226,7 +223,6 @@ def import_WT_output():
             df_full=pd.concat((df_full,df))
 
     return df_full
-
 
 def plot_weights(mlp,cytokines,peptides,**kwargs):
 

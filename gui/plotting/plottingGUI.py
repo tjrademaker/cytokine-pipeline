@@ -60,12 +60,14 @@ class checkUncheckAllButton(tk.Button):
 
 #FOR PLOT DATA SELECTION
 class selectLevelsPage(tk.Frame):
-    def __init__(self, master,inputdf):
+    def __init__(self, master,inputdf,hpage):
         tk.Frame.__init__(self, master)
         labelWindow = tk.Frame(self)
         labelWindow.pack(side=tk.TOP,padx=10,pady=10)
         
+        global homePage
         global experimentDf
+        homePage = hpage
         experimentDf = inputdf
         global trueLabelDict
         trueLabelDict = {}
@@ -124,6 +126,7 @@ class selectLevelsPage(tk.Frame):
         buttonWindow = tk.Frame(self)
         buttonWindow.pack(side=tk.TOP,pady=10)
         tk.Button(buttonWindow, text="OK",command=lambda: collectInputs()).pack(in_=buttonWindow,side=tk.LEFT)
+        tk.Button(buttonWindow, text="Back",command=lambda: master.switch_frame(homePage)).pack(in_=buttonWindow,side=tk.LEFT)
         tk.Button(buttonWindow, text="Quit",command=lambda: quitCommand()).pack(in_=buttonWindow,side=tk.LEFT)
 
 class selectLevelValuesPage(tk.Frame):
