@@ -209,15 +209,11 @@ def main():
 		# Revert to original orientation of dataframe
 		df=df.unstack("Time").droplevel(level=0,axis=1)
 
-		if "Tumor" in filename:
-			print(df.index.names)
-
 		# Print changes
 		if df.index.names != tmp.index.names:
-			None
-			# print(file)
-			# print("OLD\t",tmp.index.names)
-			# print("NEW\t",df.index.names,"\n")
+			print(file)
+			print("OLD\t",tmp.index.names)
+			print("NEW\t",df.index.names,"\n")
 
 		# Save file
 		df.to_pickle("../data/final/"+new_file)
