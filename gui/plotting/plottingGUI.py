@@ -196,7 +196,7 @@ class selectLevelValuesPage(tk.Frame):
         buttonWindow.pack(side=tk.TOP,pady=10)
         
         tk.Button(buttonWindow, text="OK",command=lambda: collectInputs()).grid(row=maxNumLevelValues+4,column=0)
-        tk.Button(buttonWindow, text="Back",command=lambda: master.switch_frame(selectLevelsPage,experimentDf)).grid(row=maxNumLevelValues+4,column=1)
+        tk.Button(buttonWindow, text="Back",command=lambda: master.switch_frame(selectLevelsPage,experimentDf,homePage)).grid(row=maxNumLevelValues+4,column=1)
         tk.Button(buttonWindow, text="Quit",command=lambda: quitCommand()).grid(row=maxNumLevelValues+4,column=2)
 
 class assignLevelsToParametersPage(tk.Frame):

@@ -125,7 +125,7 @@ def main():
 			df["IFNgPulseConcentration"][df.APCType=="Tumor"]=[conc for conc in df.Concentration[df.APCType=="Tumor"]]
 			df["Concentration"][df.APCType=="Tumor"]="None"
 		elif filename in tumor_timeseries[2]:
-			df["APC"]="B16"
+			df["APC"]=["B16" if apctype == "Tumor" else "B6" for apctype in df.APCType]
 			df["IFNgPulseConcentration"]=[conc[:3] if "IFNg" in conc else "None" for conc in df.Concentration]
 			df["Concentration"]=["None" if "IFNg" in conc else conc for conc in df.Concentration]
 
@@ -137,6 +137,7 @@ def main():
 			df["TumorCellNumber"]=df.TumorCellNumber.str.replace("K","k")
 			df=df[df.TumorCellNumber=="17k"]
 			df.drop("TumorCellNumber",axis=1,inplace=True)
+			df=df.iloc[:,::-1] # Hacky shortcut to get ordering of columns that results in similar level order for APCType, APC, IFNgPulseConcentration
 
 		# Add activation type
 		elif filename in activation_timeseries:
@@ -196,17 +197,27 @@ def main():
 		# Place standard levels last (TCellNumber/Peptide/Concentration)
 		df.set_index([col for col in df.columns if col is not 0],inplace=True)
 
+		if "Tumor" in filename:
+			print(df.index.names)
+
 		standard_levels=["TCellNumber","Peptide","Concentration"]
 		df=df.reorder_levels([level for level in df.index.names if level not in standard_levels]+standard_levels)
+
+		if "Tumor" in filename:
+			print(df.index.names)
 
 		# Revert to original orientation of dataframe
 		df=df.unstack("Time").droplevel(level=0,axis=1)
 
+		if "Tumor" in filename:
+			print(df.index.names)
+
 		# Print changes
 		if df.index.names != tmp.index.names:
-			print(file)
-			print("OLD\t",tmp.index.names)
-			print("NEW\t",df.index.names,"\n")
+			None
+			# print(file)
+			# print("OLD\t",tmp.index.names)
+			# print("NEW\t",df.index.names,"\n")
 
 		# Save file
 		df.to_pickle("../data/final/"+new_file)

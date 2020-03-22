@@ -40,7 +40,7 @@ class WeightMatrixSelectionPage(tk.Frame):
         datasetRadioButtons = []
         trainingDatasets = []
         for fileName in os.listdir('output'):
-            if '-' in fileName and '.pkl' in fileName:
+            if '-' in fileName and '.pkl' in fileName and 'mlp' in fileName:
                 datasetName = fileName.split('.')[0].split('-')[-1]
                 if datasetName not in trainingDatasets:
                     trainingDatasets.append(datasetName)
@@ -98,6 +98,7 @@ class WTorMutantDatasetSelectionPage(tk.Frame):
                 df_mutant = import_mutant_output(datasetType)
                 #Subset features by what was used to train WT
                 featureColumns = pd.read_pickle("output/train-"+datasetName+".pkl").columns
+                print(df_mutant)
                 df_mutant = df_mutant.loc[:,featureColumns]
                 #Project mutant on latent space
                 df_mutant_proj=pd.DataFrame(np.dot(df_mutant,weightMatrix.coefs_[0]),index=df_mutant.index,columns=["Node 1","Node 2"])
@@ -204,12 +205,40 @@ def import_WT_output():
 
 def import_mutant_output(mutant):
     """Import processed cytokine data from an experiment that contains mutant data
+
     Args:
-        mutant (str): name of file with mutant data.
-                Has to be one of the following "Tumor","Activation","TCellNumber","Macrophages","CAR","TCellType","CD25Mutant","ITAMDeficient"
+            mutant (str): name of file with mutant data.
+                    Has to be one of the following "Tumor","Activation","TCellNumber","Macrophages","CAR","TCellType","CD25Mutant","ITAMDeficient"
+
     Returns:
-            df_full (dataframe): the dataframe with processed cytokine data
+        df_full (dataframe): the dataframe with processed cytokine data
     """
+    
+    naive_level_values={
+                "ActivationType": "Naive",
+                "Antibody": "None",
+                "APC": "B6",
+                "APCType": "Splenocyte",
+                "CARConstruct":"None",
+                "CAR_Antigen":"None",
+                "Genotype": "WT",
+                "IFNgPulseConcentration":"None",
+                "TCellType": "OT1",
+                "TLR_Agonist":"None",
+            }
+    
+    mutant_levels={
+                "Tumor": ["APC","APCType","IFNgPulseConcentration"],
+                "Activation": ["ActivationType"],
+                "TCellNumber": [],
+                "Macrophages": ["TLR_Agonist"],
+                "CAR":["CAR_Antigen","Genotype","CARConstruct"],
+                "TCellType":["TCellType"],
+                "CD25Mutant": ["Genotype"],
+                "ITAMDeficient":["Genotype"],
+            }
+    
+    essential_levels=["TCellNumber","Peptide","Concentration","Time"]
 
     folder="data/processed/"
 
@@ -219,15 +248,24 @@ def import_mutant_output(mutant):
             continue
 
         df=pd.read_hdf(folder + "/" + file)
-        df=pd.concat([df],keys=[file[:-4]],names=["Data"]) #add experiment name as multiindex level 
-
+        
+        # If level not in essential levels or mutant-required level, keep naive level values and drop level
+        for level in df.index.names:
+            if level not in essential_levels+mutant_levels[mutant]:
+                df=df[df.index.get_level_values(level)==naive_level_values[level]]
+                df=df.droplevel(level,axis=0)
+                
+        df=pd.concat([df],keys=[file[:-4]],names=["Data"]) #add experiment name as multiindex level
+        
+        print(file)
+        print(df.index.names)
+        
         if "df_full" not in locals():
             df_full=df.copy()
         else:
-            df_full=pd.concat([df_full,df])
+            df_full=pd.concat([df_full,df],levels=["Data"]+mutant_levels[mutant]+essential_levels)
 
     return df_full
-
 
 def plot_parameters(mutant):
     """Find the index level name associated to the provided mutant by returning the value associated to the key mutant in mutant_dict
