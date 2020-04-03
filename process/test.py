@@ -1,7 +1,8 @@
 #! /usr/bin/env python3
-import os,sys
+import os,sys,pickle
 import tkinter as tk
 from tkinter import ttk
+import pandas as pd
 
 #Root class; handles frame switching in gui
 class GUI_Start(tk.Tk):
@@ -53,5 +54,7 @@ class InputDatasetSelectionPage(tk.Frame):
 
         frame.pack()
 
-app = GUI_Start(InputDatasetSelectionPage)
-app.mainloop()
+df = pickle.load(open('../output/all-WT.pkl','rb'))
+print(pd.unique(df.index.get_level_values('Data')))
+df = df.rename({'OT1-CAR_CytokineOnly_2':'OT1_CAR_CytokineOnly_2'})
+print(pd.unique(df.index.get_level_values('Data')))

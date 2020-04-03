@@ -15,12 +15,23 @@ based off a module by
 @author:frbourassa
 July 2019
 """
+import os,sys
+from sys import platform as sys_pf
+if sys_pf == 'darwin':
+	import matplotlib
+	matplotlib.use("TkAgg")
+import tkinter as tk
+from tkinter import ttk
+from adapt_dataframes import set_standard_order
+sys.path.insert(0, '../gui/plotting')
+from plottingGUI import GUI_Start,createLabelDict,checkUncheckAllButton,selectLevelsPage 
 
 import numpy as np
 import scipy
 from scipy import interpolate
 import pandas as pd
-import os
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 def moving_average(points, kernelsize):
     """ Moving average filtering on the array of experimental points, averages over a block of size kernelsize.
@@ -55,7 +66,7 @@ def moving_average(points, kernelsize):
 
     # Normalize the middle points
     smoothed[w:end - w] = smoothed[w:end - w] / kernelsize
-
+    
     return smoothed
 
 
@@ -192,7 +203,7 @@ def treat_missing_data(df):
     """
     # Check for zeros (=minimum) per cytokine and time
     df_zero=(np.sum(df==df.min(),axis=1)==len(df.columns)).unstack("Time")
-
+    
     # Logic: after having been nonzero cannot be zero in all cytokines at the same time 
     remove_idx_time={}
     for time in range(1,len(df_zero.columns)):
@@ -316,10 +327,10 @@ def process_file(folder,file, **kwargs):
 
     # Smooth the data points before fitting splines for interpolation
     data_smooth = smoothing_data(data_log, kernelsize=smooth_size)
-
+    
     # Fit cubic splines on the smoothed series
     spline_frame = generate_splines(data_log, data_smooth,rtol=rtol_splines)
-
+    
     # Extract integral, concentration and derivative features from splines at set timepoints
     df = extract_features(spline_frame,max_time=max_time)
 
@@ -328,31 +339,128 @@ def process_file(folder,file, **kwargs):
     df[df.concentration<0]=0
     df["integral"] = update_integral_features(df.integral)
 
-
     # Return data in various stages of processing
     return [data, data_log, data_smooth, df]
 
+class SplineDatasetSelectionPage(tk.Frame):
+    def __init__(self, master):
+        tk.Frame.__init__(self, master)
+        
+        actionWindow = tk.Frame(self)
+        actionWindow.pack(side=tk.TOP,padx=10,pady=20)
+        l1 = tk.Label(actionWindow, text="Select action:", font='Helvetica 18 bold').grid(row=0,column=0,sticky=tk.W)
+        rblist = []
+        actions = ['Create Splines','Plot Splines']
+        actionVar = tk.StringVar(value=actions[1])
+        for i,action in enumerate(actions):
+            rb = tk.Radiobutton(actionWindow,text=action, variable=actionVar,value=action)
+            rb.grid(row=i+1,column=0,sticky=tk.W)
+            rblist.append(rb)
+        
+        folder = "../data/final/" 
+        fileNameDict = {}
+        for fileName in os.listdir(folder):
+            if fileName.endswith(".pkl"):
+                fileNameDict[fileName[41:-10]] = fileName 
+        trueLabelDict = {'Select dataset':list(fileNameDict.keys())}
 
-def master_looper(folder="../data/final",plot=False):
+        labelWindow = tk.Frame(self)
+        labelWindow.pack(side=tk.TOP,padx=10,fill=tk.X,expand=True) 
+        
+        levelValueCheckButtonList = []
+        overallCheckButtonVariableList = []
+        checkAllButtonList = []
+        uncheckAllButtonList = []
+        i=0
+        maxNumLevelValues = 0
+        for levelName in trueLabelDict:
+            j=0
+            levelCheckButtonList = []
+            levelCheckButtonVariableList = []
+            levelLabel = tk.Label(labelWindow, text=levelName+':', font='Helvetica 18 bold')
+            levelLabel.grid(row=1,column = i*6,sticky=tk.N,columnspan=5)
+            for levelValue in trueLabelDict[levelName]:
+                includeLevelValueBool = tk.BooleanVar()
+                cb = tk.Checkbutton(labelWindow, text=levelValue, variable=includeLevelValueBool)
+                cb.grid(row=j+4,column=i*6+2,columnspan=2,sticky=tk.W)
+                labelWindow.grid_columnconfigure(i*6+3,weight=1)
+                cb.select()
+                levelCheckButtonList.append(cb)
+                levelCheckButtonVariableList.append(includeLevelValueBool)
+                j+=1
+            
+            checkAllButton1 = checkUncheckAllButton(labelWindow,levelCheckButtonList, text='Check All')
+            checkAllButton1.configure(command=checkAllButton1.checkAll)
+            checkAllButton1.grid(row=2,column=i*6,sticky=tk.N,columnspan=3)
+            checkAllButtonList.append(checkAllButton1)
+            
+            uncheckAllButton1 = checkUncheckAllButton(labelWindow,levelCheckButtonList, text='Uncheck All')
+            uncheckAllButton1.configure(command=checkAllButton1.uncheckAll)
+            uncheckAllButton1.grid(row=2,column=i*6+3,sticky=tk.N,columnspan=3)
+            uncheckAllButtonList.append(checkAllButton1)
 
-    for file in os.listdir(folder):
-        if file.endswith(".pkl"):
-            print(file[41:-10])
-            [data, data_log, data_smooth, df]=process_file(folder,file)
-            df.to_hdf("../data/processed/"+file[41:-10]+".hdf", key="Features", mode="w")
+            levelValueCheckButtonList.append(levelCheckButtonList)
+            overallCheckButtonVariableList.append(levelCheckButtonVariableList)
+            if len(trueLabelDict[levelName]) > maxNumLevelValues:
+                maxNumLevelValues = len(trueLabelDict[levelName])
+            i+=1
 
-    if plot:
-        plot_splines(data_log,df)
+        def collectInputs():
+            includeLevelValueList = []
+            #Decode boolean array of checkboxes to level names
+            i = 0
+            for levelName,checkButtonVariableList in zip(trueLabelDict,overallCheckButtonVariableList):
+                tempLevelValueList = []
+                for levelValue,checkButtonVariable in zip(trueLabelDict[levelName],checkButtonVariableList):
+                    if checkButtonVariable.get():
+                        tempLevelValueList.append(levelValue)
+                #Add time level values in separately using time range entrybox
+                if i == len(trueLabelDict.keys()) - 2:
+                    timeRange = e2.get().split('-')
+                    includeLevelValueList.append(list(range(int(timeRange[0]),int(timeRange[1]))))
+                includeLevelValueList.append(tempLevelValueList)
+                i+=1
 
-    return None
+            if actionVar.get() == 'Create Splines':
+                for fileName in includeLevelValueList[0]:
+                    fullFileName = fileNameDict[fileName]
+                    [data, data_log, data_smooth, df]=process_file(folder,fullFileName)
+                    df.to_hdf("../data/processed/"+fileName+".hdf", key="Features", mode="w")
+            #TODO: allow every stage (log/smooth/spline) to be plotted, not just spline
+            else:
+                dflist = []
+                for fileName in includeLevelValueList[0]:
+                    fullFileName = fileNameDict[fileName]
+                    df = pd.read_hdf("../data/processed/"+fullFileName[41:-10]+".hdf",key='Features')
+                    dflist.append(df)
+                try:
+                    fulldf = pd.concat(dflist,keys=includeLevelValueList[0],names=['Data'])
+                except:
+                    tk.messagebox.showerror("Error", "Datasets have different types of levels. Please change your selections.")
+                else:
+                    stackedFullDf = fulldf.stack().stack().to_frame('value')
+                    print(stackedFullDf)
+                    stackedFullDf = stackedFullDf.swaplevel(i=-3,j=-1,axis=0)
+                    print(stackedFullDf)
+                    stackedFullDf = set_standard_order(stackedFullDf.reset_index())
+                    stackedFullDf = pd.DataFrame(stackedFullDf['value'].values,index=pd.MultiIndex.from_frame(stackedFullDf.iloc[:,:-1]))
+                    stackedFullDf.columns = ['value']
+                    master.switch_frame(selectLevelsPage,stackedFullDf,SplineDatasetSelectionPage)
 
+
+        buttonWindow = tk.Frame(self)
+        buttonWindow.pack(side=tk.TOP,pady=10)
+        tk.Button(buttonWindow, text="OK",command=lambda: collectInputs()).pack(in_=buttonWindow,side=tk.LEFT)
+        tk.Button(buttonWindow, text="Quit",command=lambda: quit()).pack(in_=buttonWindow,side=tk.LEFT)
+
+def main():
+    app = GUI_Start(SplineDatasetSelectionPage)
+    app.mainloop()
 
 """
 TODO 
 - Plot semi-processed (flagged missing data, log transformed and normalized) raw data and splines
-- Add functionality to call what folders to run from command line
+- Incorporate adapt_dataframe into this script so that it doesn't need to be run separately
 """
-
-
 if __name__ == "__main__":
-    master_looper(folder="../data/final/")
+    main()

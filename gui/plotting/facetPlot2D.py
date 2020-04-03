@@ -14,10 +14,19 @@ from matplotlib import colors,ticker
     
 def plot(plottingDf,subsettedDf,kwargs,facetKwargs,auxillaryKwargs,plotOptions):
     #Make sure there are markers at each column variable
-    if 'style' not in kwargs.keys():
-        fg = sns.relplot(data=plottingDf,marker='o',kind=auxillaryKwargs['subPlotType'],facet_kws=facetKwargs,ci=False,**kwargs,**plotOptions['X']['figureDimensions'],sort=False,mew=0,ms=4)
+    if 'Time' in plottingDf.columns:
+        if len(pd.unique(plottingDf.Time)) > 36:
+            fg = sns.relplot(data=plottingDf,kind=auxillaryKwargs['subPlotType'],facet_kws=facetKwargs,ci=False,**kwargs,**plotOptions['X']['figureDimensions'],sort=False,mew=0,ms=4)
+        else:
+            if 'style' not in kwargs.keys():
+                fg = sns.relplot(data=plottingDf,marker='o',kind=auxillaryKwargs['subPlotType'],facet_kws=facetKwargs,ci=False,**kwargs,**plotOptions['X']['figureDimensions'],sort=False,mew=0,ms=4)
+            else:
+                fg = sns.relplot(data=plottingDf,markers=True,kind=auxillaryKwargs['subPlotType'],facet_kws=facetKwargs,ci=False,**kwargs,**plotOptions['X']['figureDimensions'],sort=False,mew=0,ms=4)
     else:
-        fg = sns.relplot(data=plottingDf,markers=True,kind=auxillaryKwargs['subPlotType'],facet_kws=facetKwargs,ci=False,**kwargs,**plotOptions['X']['figureDimensions'],sort=False,mew=0,ms=4)
+        if 'style' not in kwargs.keys():
+            fg = sns.relplot(data=plottingDf,marker='o',kind=auxillaryKwargs['subPlotType'],facet_kws=facetKwargs,ci=False,**kwargs,**plotOptions['X']['figureDimensions'],sort=False,mew=0,ms=4)
+        else:
+            fg = sns.relplot(data=plottingDf,markers=True,kind=auxillaryKwargs['subPlotType'],facet_kws=facetKwargs,ci=False,**kwargs,**plotOptions['X']['figureDimensions'],sort=False,mew=0,ms=4)
     #X and Y Axis Scaling for 2D plots
     for axis in plotOptions:
         k = len(fg.fig.get_axes())

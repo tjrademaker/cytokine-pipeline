@@ -241,7 +241,10 @@ class assignLevelsToParametersPage(tk.Frame):
                     else:
                         parametersSelected[parameterTypeDict[plotType][parameterVar.get()]].append(levelName)
             if plotType == '2d' and 'X Axis Values' not in parametersSelected:
-                parametersSelected['X Axis Values'] = experimentDf.columns[0]
+                if 'Feature' in experimentDf.index.names:
+                    parametersSelected['X Axis Values'] = 'Time' 
+                else:
+                    parametersSelected['X Axis Values'] = experimentDf.columns[0]
             master.switch_frame(plotElementsGUIPage)
         
         def quitCommand():
@@ -276,12 +279,18 @@ def getDefaultAxisTitles():
                     else:
                         cbartitle = experimentDf.columns[1]
                 else:
-                    if dataType == 'cyt':
+                    if 'Feature' in experimentDf.index.names:
                         if plotType == '2d':
-                            yaxistitle = cytokineDefault
+                            yaxistitle = 'value' 
                         else:
-                            cbartitle = cytokineDefault
-        if xaxistitle == 'Time':
+                            cbartitle = 'value'
+                    else:
+                        if dataType == 'cyt':
+                            if plotType == '2d':
+                                yaxistitle = cytokineDefault
+                            else:
+                                cbartitle = cytokineDefault
+        if xaxistitle == 'Time' and yaxistitle != 'value':
             xaxistitle += ' (hours)'
         return [xaxistitle,yaxistitle,cbartitle]
 
@@ -491,6 +500,6 @@ class plotElementsGUIPage(tk.Frame):
         
         buttonWindow = tk.Frame(self)
         buttonWindow.pack(side=tk.TOP,pady=10)
-        tk.Button(buttonWindow, text="OK",command=lambda: master.switch_frame(selectLevelsPage)).grid(row=len(scalingList)+4,column=0)
+        tk.Button(buttonWindow, text="OK",command=lambda: master.switch_frame(selectLevelsPage,experimentDf,homePage)).grid(row=len(scalingList)+4,column=0)
         tk.Button(buttonWindow, text="Back",command=lambda: master.switch_frame(assignLevelsToParametersPage,includeLevelValueList)).grid(row=len(scalingList)+4,column=1)
         tk.Button(buttonWindow, text="Quit",command=lambda: quit()).grid(row=len(scalingList)+4,column=2)

@@ -1,3 +1,4 @@
+#! /usr/bin/env python3
 """Relate parameter fits to data features"""
 
 import warnings

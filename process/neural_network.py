@@ -16,6 +16,7 @@ import tkinter as tk
 from tkinter import ttk
 sys.path.insert(0, '../gui/plotting')
 from plottingGUI import GUI_Start,createLabelDict,checkUncheckAllButton,selectLevelsPage 
+from adapt_dataframes import set_standard_order
 
 idx = pd.IndexSlice
 
@@ -26,10 +27,13 @@ class InputDatasetSelectionPage(tk.Frame):
         
         global trueLabelDict
         trueLabelDict = {}
+        
+        #Sort by date/number/quality/quantity
+        dataset = set_standard_order(dataset.reset_index())
+         
+        dataset = pd.DataFrame(dataset['value'].values,index=pd.MultiIndex.from_frame(dataset.iloc[:,:-1]))
+        dataset.columns.name = 'value'
         trueLabelDict = createLabelDict(dataset)
-        print(dataset)
-        print(trueLabelDict)
-        includeLevelValueList = []
         
         titleWindow = tk.Frame(self)
         titleWindow.pack(side=tk.TOP,padx=10,fill='none',expand=True)
@@ -88,6 +92,7 @@ class InputDatasetSelectionPage(tk.Frame):
             i+=1
 
         def collectInputs(dataset):
+            includeLevelValueList = []
             #Decode boolean array of checkboxes to level names
             i = 0
             for levelName,checkButtonVariableList in zip(trueLabelDict,overallCheckButtonVariableList):
@@ -142,42 +147,13 @@ class InputDatasetSelectionPage(tk.Frame):
 
 def main():
 
-    #Set parameters
-    features="integral"
-    cytokines="IFNg+IL-2+IL-6+IL-17A+TNFa"
-    times=np.arange(20,73)
-    train_timeseries=[
-            "PeptideComparison_OT1_Timeseries_18",
-            "PeptideComparison_OT1_Timeseries_19",
-            "PeptideComparison_OT1_Timeseries_20",
-            "PeptideTumorComparison_OT1_Timeseries_1",
-            "Activation_Timeseries_1",
-            "TCellNumber_OT1_Timeseries_7"
-            ]
-
-    peptides=["N4","Q4","T4","V4","G4","E1"][::-1]
-    concentrations=["1uM","100nM","10nM","1nM"]
-    tcellnumbers=["100k"]
-
-    peptide_dict={k:v for v,k in enumerate(peptides)}
-
     #Import data
     df=import_WT_output()
     df = df.stack().stack().to_frame('value')
     df.to_pickle("../output/all-WT.pkl")
-    
-    #print(df.loc[idx[],:])
-    # TODO: Add GUI instead of manually selecting levels
+     
     app = GUI_Start(InputDatasetSelectionPage,df)
     app.mainloop()
-
-    df=df.loc[(train_timeseries,tcellnumbers,peptides,concentrations,times),(features.split("+"),cytokines.split("+"))]
-
-    # df=df[~ (((df.index.get_level_values("Peptide") == "V4")  & (df.index.get_level_values("Concentration") == "1nM")) 
-    # 	| ((df.index.get_level_values("Peptide") == "T4")  & (df.index.get_level_values("Concentration") == "1nM"))
-    # 	| ((df.index.get_level_values("Peptide") == "Q4")  & (df.index.get_level_values("Concentration") == "1nM")))]
-
-    # plot_weights(mlp,cytokines.split("+"),peptides,filepath=filepath)
 
 def import_WT_output():
     """Import splines from wildtype naive OT-1 T cells by looping through all datasets
@@ -221,7 +197,6 @@ def import_WT_output():
             df_full=df.copy()
         else:
             df_full=pd.concat((df_full,df))
-
     return df_full
 
 def plot_weights(mlp,cytokines,peptides,**kwargs):

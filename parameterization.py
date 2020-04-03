@@ -1,3 +1,4 @@
+#! /usr/bin/env python3
 """Fit curves in latent space"""
 
 import warnings
@@ -27,7 +28,6 @@ def fit_vt_vm(node1, node2, tol_r2=0.99):
         return slope
     else:
         return np.nan
-
 
 # Compute ratio vt / vm experiment-wide
 def compute_vt_vm(df):
@@ -94,86 +94,89 @@ def fit_all_curves(df):
     
     return df_params
 
+def main(): 
+    time_scale=20
+    cytokines="IFNg+IL-2+IL-6+IL-17A+TNFa"
 
-time_scale=20
-cytokines="IFNg+IL-2+IL-6+IL-17A+TNFa"
+    tcellnumbers=["100k","30k","10k","3k"]
+    peptides=["N4","Q4","T4","V4"]
+    concentrations=["1uM","100nM","10nM","1nM"]
 
-tcellnumbers=["100k","30k","10k","3k"]
-peptides=["N4","Q4","T4","V4"]
-concentrations=["1uM","100nM","10nM","1nM"]
+    colors=sns.color_palette('deep', 4)
+    markers=["o","X","s","P"]
+    sizes=[50,30,20,10]
 
-colors=sns.color_palette('deep', 4)
-markers=["o","X","s","P"]
-sizes=[50,30,20,10]
+    # Ugly way to define color dictionary for each of the variables
+    color_dict={var:color for var,color in zip(tcellnumbers+peptides+concentrations,colors+colors+colors)}
+    marker_dict={var:marker for var,marker in zip(tcellnumbers+peptides+concentrations,markers+markers+markers)}
+    size_dict={var:size for var,size in zip(tcellnumbers+peptides+concentrations,sizes+sizes+sizes)}
 
-# Ugly way to define color dictionary for each of the variables
-color_dict={var:color for var,color in zip(tcellnumbers+peptides+concentrations,colors+colors+colors)}
-marker_dict={var:marker for var,marker in zip(tcellnumbers+peptides+concentrations,markers+markers+markers)}
-size_dict={var:size for var,size in zip(tcellnumbers+peptides+concentrations,sizes+sizes+sizes)}
+    peptide_dict={pep:i for pep,i in zip(peptides,range(len(peptides)))}
 
-peptide_dict={pep:i for pep,i in zip(peptides,range(len(peptides)))}
+    df_all_params=pd.DataFrame([],columns=["TCellNumber","Data","Peptide","Concentration","v_0","t_0","theta"])
 
-df_all_params=pd.DataFrame([],columns=["TCellNumber","Data","Peptide","Concentration","v_0","t_0","theta"])
+    for exp in ["PeptideComparison_OT1_Timeseries_"+num for num in ["21","22","23"]]+["TCellNumber_OT1_Timeseries_7","Activation_TCellNumber_1","TCellNumber_1"]:
+            print(exp)
 
-for exp in ["PeptideComparison_OT1_Timeseries_"+num for num in ["21","22","23"]]+["TCellNumber_OT1_Timeseries_7","Activation_TCellNumber_1","TCellNumber_1"]:
-	print(exp)
+            # Load data
+            df=pd.read_hdf("data/processed/%s.hdf"%exp)
+            df=df.loc[:,("integral",cytokines.split("+"))]
+            df_min,df_max=pd.read_pickle("output/train-min-max.pkl")
+            df=(df - df_min)/(df_max - df_min)
 
-	# Load data
-	df=pd.read_hdf("data/processed/%s.hdf"%exp)
-	df=df.loc[:,("integral",cytokines.split("+"))]
-	df_min,df_max=pd.read_pickle("output/train-min-max.pkl")
-	df=(df - df_min)/(df_max - df_min)
+            mlp=pickle.load(open("output/mlp.pkl", "rb"))
 
-	mlp=pickle.load(open("output/mlp.pkl", "rb"))
+            # Project on latent space
+            df=pd.DataFrame(np.dot(df,mlp.coefs_[0]),index=df.index,columns=["Node 1","Node 2"])
 
-	# Project on latent space
-	df=pd.DataFrame(np.dot(df,mlp.coefs_[0]),index=df.index,columns=["Node 1","Node 2"])
+            # Fit curves
+            vt_vm_ratio = compute_vt_vm(df)
+            df_params = fit_all_curves(df)
 
-	# Fit curves
-	vt_vm_ratio = compute_vt_vm(df)
-	df_params = fit_all_curves(df)
+            # From Activation_TCellNumber_1 dataset, only take None
+            if "Activation" in exp:
+                    print(df_params)
+                    df_params=df_params.loc["Naive"]
+                    df=df.loc["Naive"]
+            df_params["Data"]=exp
+            df_all_params=pd.concat([df_all_params,df_params.reset_index()])
 
-	# From Activation_TCellNumber_1 dataset, only take None
-	if "Activation" in exp:
-		print(df_params)
-		df_params=df_params.loc["Naive"]
-		df=df.loc["Naive"]
-	df_params["Data"]=exp
-	df_all_params=pd.concat([df_all_params,df_params.reset_index()])
+            print(df_params.index.levels)
 
-	print(df_params.index.levels)
+            # Show parameter relationships
+            if exp == "TCellNumber_1":
+                    tcellnumbers_=["200k", "80k", "32k", "16k", "8k", "2k"]
+            else:
+                    tcellnumbers_=tcellnumbers
 
-	# Show parameter relationships
-	if exp == "TCellNumber_1":
-		tcellnumbers_=["200k", "80k", "32k", "16k", "8k", "2k"]
-	else:
-		tcellnumbers_=tcellnumbers
+            h=sns.relplot(data=df_params.reset_index(), x="t_0",y="v_0",
+                    hue="TCellNumber", hue_order=tcellnumbers_,
+                    style="Peptide",style_order=peptides)
+            h.ax.set(title=exp)
+            # plt.savefig("figures/fitting/v0-t0-%s.pdf"%exp,bbox_to_inches='tight')
 
-	h=sns.relplot(data=df_params.reset_index(), x="t_0",y="v_0",
-		hue="TCellNumber", hue_order=tcellnumbers_,
-		style="Peptide",style_order=peptides)
-	h.ax.set(title=exp)
-	# plt.savefig("figures/fitting/v0-t0-%s.pdf"%exp,bbox_to_inches='tight')
+            # Compute latent space coordinates from parameters fits
+            df_fit=df.copy()
+            for idx in df_params.index:
+                    v_0, theta, t_0, v_t = df_params.loc[idx,["v_0","theta","t_0","v_t"]]
+                    times = df_fit.loc[idx,:].index.get_level_values("Time").astype("float")/time_scale
+                    df_fit.loc[idx,:]=ballistic(times, v_0, theta, t_0, v_t).reshape(2,-1).T
 
-	# Compute latent space coordinates from parameters fits
-	df_fit=df.copy()
-	for idx in df_params.index:
-		v_0, theta, t_0, v_t = df_params.loc[idx,["v_0","theta","t_0","v_t"]]
-		times = df_fit.loc[idx,:].index.get_level_values("Time").astype("float")/time_scale
-		df_fit.loc[idx,:]=ballistic(times, v_0, theta, t_0, v_t).reshape(2,-1).T
+            # Compare fit vs splines
+            df["Processing type"]="Splines"
+            df_fit["Processing type"]="Fit"
 
-	# Compare fit vs splines
-	df["Processing type"]="Splines"
-	df_fit["Processing type"]="Fit"
+            df_compare=pd.concat([df,df_fit])
+            df_compare.set_index("Processing type",inplace=True,append=True)
 
-	df_compare=pd.concat([df,df_fit])
-	df_compare.set_index("Processing type",inplace=True,append=True)
+            sns.relplot(data=df_compare.reset_index(),kind="line",sort=False,x="Node 1",y="Node 2",
+                                    hue="Peptide",hue_order=["N4","Q4","T4","V4","G4","E1"],
+                                    size="Concentration",size_order=["1uM","100nM","10nM","1nM"],
+                                    style="Processing type",dashes=["",(1,1)],col=df.index.names[0])
+            # plt.savefig("figures/fitting/compare-splines-with-fit-%s.pdf"%exp)
 
-	sns.relplot(data=df_compare.reset_index(),kind="line",sort=False,x="Node 1",y="Node 2",
-				hue="Peptide",hue_order=["N4","Q4","T4","V4","G4","E1"],
-				size="Concentration",size_order=["1uM","100nM","10nM","1nM"],
-				style="Processing type",dashes=["",(1,1)],col=df.index.names[0])
-	# plt.savefig("figures/fitting/compare-splines-with-fit-%s.pdf"%exp)
+    df_all_params.to_pickle("output/all_fit_params.pkl")
+    plt.show()
 
-df_all_params.to_pickle("output/all_fit_params.pkl")
-plt.show()
+if __name__ == "__main__":
+    main()

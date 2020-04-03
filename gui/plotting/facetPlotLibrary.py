@@ -35,12 +35,13 @@ def produceSubsettedDataFrames(fulldf,withinFigureBoolean,specificValueBooleanLi
     figureLevelIndices = []
     levelValuesPlottedIndividually = []
     print(fulldf)
-    if len(fulldf.columns) > 1 and 'Node' in fulldf.columns[0]:
+    if (len(fulldf.columns) > 1 and 'Node' in fulldf.columns[0]) or 'Feature' in fulldf.index.names:
         exclusionLevel = 'Time'
     else:
         exclusionLevel = 'Event'
     print(exclusionLevel)
     print('waaaaaat')
+    print(fulldf)
     print(fulldf.columns.name)
     print(fulldf.columns[0])
     for levelIndex,currentLevelName in enumerate(fulldf.index.names):
