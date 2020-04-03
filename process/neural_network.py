@@ -32,7 +32,7 @@ class InputDatasetSelectionPage(tk.Frame):
         dataset = set_standard_order(dataset.reset_index())
          
         dataset = pd.DataFrame(dataset['value'].values,index=pd.MultiIndex.from_frame(dataset.iloc[:,:-1]))
-        dataset.columns.name = 'value'
+        dataset.columns = ['value']
         trueLabelDict = createLabelDict(dataset)
         
         titleWindow = tk.Frame(self)
@@ -107,8 +107,10 @@ class InputDatasetSelectionPage(tk.Frame):
                 includeLevelValueList.append(tempLevelValueList)
                 i+=1
 
+            print(dataset)
             df = dataset.loc[tuple(includeLevelValueList),:].unstack(['Feature','Cytokine']).loc[:,'value']
-            
+            print(df)
+
             trainingSetName = e1.get()
             #Save min/max and normalize data
             pickle.dump([df.min(),df.max()],open("../output/train-min_max-"+trainingSetName+".pkl","wb"))
