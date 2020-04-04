@@ -77,7 +77,13 @@ class selectLevelsPage(tk.Frame):
         global subPlotType
         global addDistributionPoints
         addDistributionPoints = False 
-        plotType,subPlotType = '2d/line'.split('/')
+        global multipleDimensions
+        if len(inputdf.columns) > 2:
+            multipleDimensions = True
+            plotType,subPlotType = '2d/scatter'.split('/')
+        else:
+            multipleDimensions = False
+            plotType,subPlotType = '2d/line'.split('/')
         
         global figureLevelList,fullFigureLevelBooleanList
         fullFigureLevelBooleanList = []
@@ -205,9 +211,13 @@ class assignLevelsToParametersPage(tk.Frame):
         parameterTypeDict = {
                 'categorical':['Color','Order', 'Row', 'Column','None'],
                 '1d':['Color','Row','Column','None'],
-                '2d':['Marker','Color','Size','Row','Column','X Axis Values','None'],
                 '3d':['Row','Column','X Axis Values','Y Axis Values']}
         
+        if not multipleDimensions:
+            parameterTypeDict['2d'] = ['Marker','Color','Size','Row','Column','X Axis Values','None']
+        else:    
+            parameterTypeDict['2d'] = ['Marker','Color','Size','Row','Column','None']
+
         tk.Frame.__init__(self, master)
         global includeLevelValueList
         includeLevelValueList = temp
@@ -216,7 +226,7 @@ class assignLevelsToParametersPage(tk.Frame):
         mainWindow = tk.Frame(self)
         mainWindow.pack(side=tk.TOP,padx=10,pady=10)
         
-        l1 = tk.Label(mainWindow, text='Which plotting parameter do you want to assign to each of your figure levels?',pady=10).grid(row=0,column = 0,columnspan = len(figureLevelList))
+        tk.Label(mainWindow, text='Which plotting parameter do you want to assign to each of your figure levels?',pady=10).grid(row=0,column = 0,columnspan = len(figureLevelList))
         rblist = []
         parameterVarList = []
         for figureLevel,figureLevelIndex in zip(figureLevelList,range(len(figureLevelList))):
@@ -230,7 +240,25 @@ class assignLevelsToParametersPage(tk.Frame):
                 temprblist.append(rb)
             rblist.append(temprblist)
             parameterVarList.append(v)
-        
+        if multipleDimensions:
+            mainWindow2 = tk.Frame(self)
+            mainWindow2.pack(side=tk.TOP,padx=10,pady=10)
+            axes = ['X Axis Values','Y Axis Values']
+            tk.Label(mainWindow2, text='Which dimension do you want to assign to each of your figure axes?',pady=10).grid(row=0,column = 0,columnspan = len(axes))
+            rblist2 = []
+            parameterVarList2 = []
+            for i,axis in enumerate(axes):
+                v2 = tk.IntVar()
+                temprblist2 = []
+                levelLabel2 = tk.Label(mainWindow2, text=axis+':')
+                levelLabel2.grid(row=1,column=i,sticky=tk.NW)
+                for j,dimension in enumerate(experimentDf.columns):
+                    rb = tk.Radiobutton(mainWindow2, text=dimension,padx = 20, variable=v2, value=j)
+                    rb.grid(row=j+2,column=i,sticky=tk.NW)
+                    temprblist2.append(rb)
+                rblist2.append(temprblist2)
+                parameterVarList2.append(v2)
+
         def collectInputs():
             for parameterVar,levelName in zip(parameterVarList,figureLevelList):
                 if parameterTypeDict[plotType][parameterVar.get()] not in parametersSelected.keys():
@@ -240,11 +268,16 @@ class assignLevelsToParametersPage(tk.Frame):
                         parametersSelected[parameterTypeDict[plotType][parameterVar.get()]] = [parametersSelected[parameterTypeDict[plotType][parameterVar.get()]]]+[levelName]
                     else:
                         parametersSelected[parameterTypeDict[plotType][parameterVar.get()]].append(levelName)
-            if plotType == '2d' and 'X Axis Values' not in parametersSelected:
-                if 'Feature' in experimentDf.index.names and 'Node' not in experimentDf.columns[0]:
-                    parametersSelected['X Axis Values'] = 'Time' 
-                else:
-                    parametersSelected['X Axis Values'] = experimentDf.columns[0]
+            if multipleDimensions:
+                for i,axis in enumerate(axes):
+                    parametersSelected[axis] = list(experimentDf.columns)[parameterVarList2[i].get()]
+                print(parametersSelected)
+            else:
+                if plotType == '2d' and 'X Axis Values' not in parametersSelected:
+                    if 'Feature' in experimentDf.index.names and 'Node' not in experimentDf.columns[0]:
+                        parametersSelected['X Axis Values'] = 'Time' 
+                    else:
+                        parametersSelected['X Axis Values'] = experimentDf.columns[0]
             master.switch_frame(plotElementsGUIPage)
         
         def quitCommand():
@@ -263,35 +296,39 @@ def getDefaultAxisTitles():
         yaxistitle = ''
         cbartitle = ''
         cytokineDefault = 'Concentration (nM)'
-        if plotType == '1d':
-            xaxistitle = 'MFI'
-            yaxistitle = 'Frequency'
-        else:
-            if plotType == 'categorical':
-                xaxistitle = parametersSelected['Order']
-                if dataType == 'cyt':
-                    yaxistitle = cytokineDefault
+        if not multipleDimensions:
+            if plotType == '1d':
+                xaxistitle = 'MFI'
+                yaxistitle = 'Frequency'
             else:
-                xaxistitle = parametersSelected['X Axis Values']
-                if 'Node' in experimentDf.columns[0]:
-                    if plotType == '2d':
-                        yaxistitle = experimentDf.columns[1] 
-                    else:
-                        cbartitle = experimentDf.columns[1]
+                if plotType == 'categorical':
+                    xaxistitle = parametersSelected['Order']
+                    if dataType == 'cyt':
+                        yaxistitle = cytokineDefault
                 else:
-                    if 'Feature' in experimentDf.index.names:
+                    xaxistitle = parametersSelected['X Axis Values']
+                    if 'Node' in experimentDf.columns[0]:
                         if plotType == '2d':
-                            yaxistitle = 'value' 
+                            yaxistitle = experimentDf.columns[1] 
                         else:
-                            cbartitle = 'value'
+                            cbartitle = experimentDf.columns[1]
                     else:
-                        if dataType == 'cyt':
+                        if 'Feature' in experimentDf.index.names:
                             if plotType == '2d':
-                                yaxistitle = cytokineDefault
+                                yaxistitle = 'value' 
                             else:
-                                cbartitle = cytokineDefault
-        if xaxistitle == 'Time' and yaxistitle != 'value':
-            xaxistitle += ' (hours)'
+                                cbartitle = 'value'
+                        else:
+                            if dataType == 'cyt':
+                                if plotType == '2d':
+                                    yaxistitle = cytokineDefault
+                                else:
+                                    cbartitle = cytokineDefault
+            if xaxistitle == 'Time' and yaxistitle != 'value':
+                xaxistitle += ' (hours)'
+        else:
+            xaxistitle = parametersSelected['X Axis Values']
+            yaxistitle = parametersSelected['Y Axis Values']
         return [xaxistitle,yaxistitle,cbartitle]
 
 class plotElementsGUIPage(tk.Frame):

@@ -17,7 +17,6 @@ import tkinter as tk
 import seaborn as sns
 sys.path.insert(0, 'gui/plotting')
 from plottingGUI import GUI_Start,selectLevelsPage
-#from projectionGUI import WeightMatrixSelectionPage
 
 splitPath = os.getcwd().split('/')
 path = '/'.join(splitPath[:splitPath.index('cytokine-pipeline-master')+1])+'/'
@@ -59,6 +58,9 @@ class WeightMatrixSelectionPage(tk.Frame):
             mlp=pickle.load(open(path+'output/mlp-'+datasetName+'.pkl',"rb"))
             global weightMatrix
             weightMatrix = mlp
+            #Grab training set min/max to normalize df to be projected
+            global df_min,df_max
+            df_min,df_max=pd.read_pickle(path+"output/train-min_max-"+datasetName+".pkl")
             master.switch_frame(WTorMutantDatasetSelectionPage)
 
         buttonWindow = tk.Frame(self)
@@ -97,10 +99,13 @@ class WTorMutantDatasetSelectionPage(tk.Frame):
                 df_mutant = import_mutant_output(datasetType)
                 #Subset features by what was used to train WT
                 featureColumns = pd.read_pickle(path+"output/train-"+datasetName+".pkl").columns
-                print(df_mutant)
                 df_mutant = df_mutant.loc[:,featureColumns]
+                #Normalize mutant
+                df_mutant=(df_mutant - df_min)/(df_max - df_min)
                 #Project mutant on latent space
                 df_mutant_proj=pd.DataFrame(np.dot(df_mutant,weightMatrix.coefs_[0]),index=df_mutant.index,columns=["Node 1","Node 2"])
+                with open(path+'gui/plotting/projectionName.pkl','wb') as f:
+                    pickle.dump('-'.join([datasetName,datasetType]),f)
                 #switch to plotting
                 if(latentSpaceBool):
                     proj_df = df_mutant_proj.iloc[::5,:]
@@ -141,15 +146,19 @@ class TrainingDatasetSelectionPage(tk.Frame):
         mainWindow.pack(side=tk.TOP,padx=10)
 
         def collectInputs():
-            datasetName = datasetVar.get()
+            datasetName2 = datasetVar.get()
             #Load files
-            df_WT=pd.read_pickle(path+"output/train-"+datasetName+".pkl")
+            df_WT=pd.read_pickle(path+"output/train-"+datasetName2+".pkl")
             #Subset features by what was used to train WT
-            featureColumns = pd.read_pickle(path+"output/train-"+datasetName+".pkl").columns
+            featureColumns = pd.read_pickle(path+"output/train-"+datasetName2+".pkl").columns
             df_WT = df_WT.loc[:,featureColumns]
+            #Normalize WT 
+            df_WT=(df_WT - df_min)/(df_max - df_min)
             #Project WT on latent space
             df_WT_proj=pd.DataFrame(np.dot(df_WT,weightMatrix.coefs_[0]),index=df_WT.index,columns=["Node 1","Node 2"])
             #switch to plotting
+            with open(path+'gui/plotting/projectionName.pkl','wb') as f:
+                pickle.dump('-'.join([datasetName,datasetName2]),f)
             if(latentSpaceBool):
                 proj_df = df_WT_proj.iloc[::5,:]
                 master.switch_frame(nextSwitchPage,proj_df,TrainingDatasetSelectionPage)

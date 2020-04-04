@@ -23,10 +23,13 @@ def plot(plottingDf,subsettedDf,kwargs,facetKwargs,auxillaryKwargs,plotOptions):
             else:
                 fg = sns.relplot(data=plottingDf,markers=True,kind=auxillaryKwargs['subPlotType'],facet_kws=facetKwargs,ci=False,**kwargs,**plotOptions['X']['figureDimensions'],sort=False,mew=0,ms=4)
     else:
-        if 'style' not in kwargs.keys():
+        if 'style' not in kwargs.keys() and auxillaryKwargs['subPlotType'] == 'line':
             fg = sns.relplot(data=plottingDf,marker='o',kind=auxillaryKwargs['subPlotType'],facet_kws=facetKwargs,ci=False,**kwargs,**plotOptions['X']['figureDimensions'],sort=False,mew=0,ms=4)
         else:
-            fg = sns.relplot(data=plottingDf,markers=True,kind=auxillaryKwargs['subPlotType'],facet_kws=facetKwargs,ci=False,**kwargs,**plotOptions['X']['figureDimensions'],sort=False,mew=0,ms=4)
+            if auxillaryKwargs['subPlotType']=='line':
+                fg = sns.relplot(data=plottingDf,markers=True,kind=auxillaryKwargs['subPlotType'],facet_kws=facetKwargs,ci=False,**kwargs,**plotOptions['X']['figureDimensions'],sort=False,mew=0,ms=4)
+            else:
+                fg = sns.relplot(data=plottingDf,kind=auxillaryKwargs['subPlotType'],facet_kws=facetKwargs,**kwargs,**plotOptions['X']['figureDimensions'])
     #X and Y Axis Scaling for 2D plots
     for axis in plotOptions:
         k = len(fg.fig.get_axes())
