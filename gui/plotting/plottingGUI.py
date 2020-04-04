@@ -241,7 +241,7 @@ class assignLevelsToParametersPage(tk.Frame):
                     else:
                         parametersSelected[parameterTypeDict[plotType][parameterVar.get()]].append(levelName)
             if plotType == '2d' and 'X Axis Values' not in parametersSelected:
-                if 'Feature' in experimentDf.index.names:
+                if 'Feature' in experimentDf.index.names and 'Node' not in experimentDf.columns[0]:
                     parametersSelected['X Axis Values'] = 'Time' 
                 else:
                     parametersSelected['X Axis Values'] = experimentDf.columns[0]

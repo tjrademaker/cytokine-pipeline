@@ -16,21 +16,20 @@ import matplotlib.pyplot as plt
 import tkinter as tk
 import seaborn as sns
 sys.path.insert(0, 'gui/plotting')
-from plottingGUI import GUI_Start,selectLevelsPage 
+from plottingGUI import GUI_Start,selectLevelsPage
+#from projectionGUI import WeightMatrixSelectionPage
 
-prop_cycle=plt.rcParams["axes.prop_cycle"]
-colors=np.array([prop_cycle.by_key()["color"]]*2).flatten()
-sizes=[1.5,1.2,0.9,0.6]
-dashes = ["", (4, 1.5), (1, 1),(3, 1, 1.5, 1), (5, 1, 1, 1),(5, 1, 2, 1, 2, 1)]*3
-markers = ["o","s","X", '^', '*', 'D', 'P','v']*3
-
-peptides=["N4","Q4","T4","V4","G4","E1"][::-1]
-concentrations=["1uM","100nM","10nM","1nM"]
-tcellnumbers=["100k"]
+splitPath = os.getcwd().split('/')
+path = '/'.join(splitPath[:splitPath.index('cytokine-pipeline-master')+1])+'/'
 
 class WeightMatrixSelectionPage(tk.Frame):
-    def __init__(self, master):
+    def __init__(self, master, lspB,nsp):
         tk.Frame.__init__(self, master)
+        
+        global latentSpaceBool,nextSwitchPage
+        latentSpaceBool = lspB
+        #Select levels page is nsp if we're starting at latent_space.py, Select Fit/action is nsp if starting at parameterization.py
+        nextSwitchPage = nsp
 
         labelWindow = tk.Frame(self)
         l1 = tk.Label(labelWindow, text="Select trained weight matrix to project with:", font='Helvetica 18 bold').pack()
@@ -39,7 +38,7 @@ class WeightMatrixSelectionPage(tk.Frame):
         mainWindow = tk.Frame(self)
         datasetRadioButtons = []
         trainingDatasets = []
-        for fileName in os.listdir('output'):
+        for fileName in os.listdir(path+'output'):
             if '-' in fileName and '.pkl' in fileName and 'mlp' in fileName:
                 datasetName = fileName.split('.')[0].split('-')[-1]
                 if datasetName not in trainingDatasets:
@@ -57,7 +56,7 @@ class WeightMatrixSelectionPage(tk.Frame):
             global datasetName
             datasetName = datasetVar.get()
             #Grab weight matrix
-            mlp=pickle.load(open("output/mlp-"+datasetName+".pkl","rb"))
+            mlp=pickle.load(open(path+'output/mlp-'+datasetName+'.pkl',"rb"))
             global weightMatrix
             weightMatrix = mlp
             master.switch_frame(WTorMutantDatasetSelectionPage)
@@ -97,18 +96,23 @@ class WTorMutantDatasetSelectionPage(tk.Frame):
                 #Load raw mutant data
                 df_mutant = import_mutant_output(datasetType)
                 #Subset features by what was used to train WT
-                featureColumns = pd.read_pickle("output/train-"+datasetName+".pkl").columns
+                featureColumns = pd.read_pickle(path+"output/train-"+datasetName+".pkl").columns
                 print(df_mutant)
                 df_mutant = df_mutant.loc[:,featureColumns]
                 #Project mutant on latent space
                 df_mutant_proj=pd.DataFrame(np.dot(df_mutant,weightMatrix.coefs_[0]),index=df_mutant.index,columns=["Node 1","Node 2"])
-                proj_df = df_mutant_proj.iloc[::5,:]
-                master.switch_frame(selectLevelsPage,proj_df,WTorMutantDatasetSelectionPage)
+                #switch to plotting
+                if(latentSpaceBool):
+                    proj_df = df_mutant_proj.iloc[::5,:]
+                    master.switch_frame(nextSwitchPage,proj_df,WTorMutantDatasetSelectionPage)
+                #switch to choosing fit type, then plotting
+                else:
+                    master.switch_frame(nextSwitchPage,df_mutant_proj,WTorMutantDatasetSelectionPage)
 
         buttonWindow = tk.Frame(self)
         buttonWindow.pack(side=tk.TOP,pady=10)
         tk.Button(buttonWindow, text="OK",command=lambda: collectInputs()).pack(in_=buttonWindow,side=tk.LEFT)
-        tk.Button(buttonWindow, text="Back",command=lambda: master.switch_frame(WeightMatrixSelectionPage)).pack(in_=buttonWindow,side=tk.LEFT)
+        tk.Button(buttonWindow, text="Back",command=lambda: master.switch_frame(WeightMatrixSelectionPage,latentSpaceBool,nextSwitchPage)).pack(in_=buttonWindow,side=tk.LEFT)
         tk.Button(buttonWindow, text="Quit",command=lambda: quit()).pack(in_=buttonWindow,side=tk.LEFT)
 
 class TrainingDatasetSelectionPage(tk.Frame):
@@ -122,7 +126,7 @@ class TrainingDatasetSelectionPage(tk.Frame):
         mainWindow = tk.Frame(self)
         datasetRadioButtons = []
         trainingDatasets = []
-        for fileName in os.listdir('output'):
+        for fileName in os.listdir(path+'output'):
             if '-' in fileName and '.pkl' in fileName:
                 datasetName = fileName.split('.')[0].split('-')[-1]
                 if datasetName not in trainingDatasets:
@@ -139,14 +143,19 @@ class TrainingDatasetSelectionPage(tk.Frame):
         def collectInputs():
             datasetName = datasetVar.get()
             #Load files
-            df_WT=pd.read_pickle("output/train-"+datasetName+".pkl")
+            df_WT=pd.read_pickle(path+"output/train-"+datasetName+".pkl")
             #Subset features by what was used to train WT
-            featureColumns = pd.read_pickle("output/train-"+datasetName+".pkl").columns
+            featureColumns = pd.read_pickle(path+"output/train-"+datasetName+".pkl").columns
             df_WT = df_WT.loc[:,featureColumns]
             #Project WT on latent space
             df_WT_proj=pd.DataFrame(np.dot(df_WT,weightMatrix.coefs_[0]),index=df_WT.index,columns=["Node 1","Node 2"])
-            proj_df = df_WT_proj.iloc[::5,:]
-            master.switch_frame(selectLevelsPage,proj_df,TrainingDatasetSelectionPage)
+            #switch to plotting
+            if(latentSpaceBool):
+                proj_df = df_WT_proj.iloc[::5,:]
+                master.switch_frame(nextSwitchPage,proj_df,TrainingDatasetSelectionPage)
+            #switch to choosing fit type, then plotting
+            else:
+                master.switch_frame(nextSwitchPage,df_WT_proj,TrainingDatasetSelectionPage)
 
         buttonWindow = tk.Frame(self)
         buttonWindow.pack(side=tk.TOP,pady=10)
@@ -155,8 +164,9 @@ class TrainingDatasetSelectionPage(tk.Frame):
         tk.Button(buttonWindow, text="Quit",command=lambda: quit()).pack(in_=buttonWindow,side=tk.LEFT)
 
 def main():
-
-    app = GUI_Start(WeightMatrixSelectionPage)
+    
+    latentSpaceBool = True
+    app = GUI_Start(WeightMatrixSelectionPage,latentSpaceBool,selectLevelsPage)
     app.mainloop()
 
 def import_WT_output():

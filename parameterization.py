@@ -4,15 +4,23 @@
 import warnings
 warnings.filterwarnings("ignore")
 
-import pickle
+import pickle,sys,os
 import numpy as np
 import pandas as pd
-import seaborn as sns
+from sys import platform as sys_pf
+if sys_pf == 'darwin':
+    import matplotlib
+    matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
+import seaborn as sns
+import tkinter as tk
 
 from scipy.optimize import curve_fit
 from scipy.stats import linregress
 from mpl_toolkits.mplot3d import Axes3D
+sys.path.insert(0, 'gui/plotting')
+from plottingGUI import GUI_Start,selectLevelsPage
+from latent_space import WeightMatrixSelectionPage
 
 # Fit a straight line to the final time points of the (node1, node2) curve. 
 # Add time points until R^2 falls under tol_r2, which means the curve is no longer straight. 
@@ -45,7 +53,7 @@ def compute_vt_vm(df):
 
 
 # Piecewise ballistic function
-def ballistic(times, v_0, theta, t_0, v_t):
+def ballisticConstantVelocity(times, v_0, theta, t_0, v_t):
     
     # Only keep unique values in times vector (which has double entries)
     times=np.unique(times)
@@ -71,112 +79,174 @@ def ballistic(times, v_0, theta, t_0, v_t):
     
     return np.array([x, y]).flatten()
 
-
 # Find the best fit for each time course in the DataFrame. 
-def fit_all_curves(df):
-    # Initialize a dataframe that will record parameters fitted to each curve. 
-    cols = ["v_0", "theta", "t_0", "v_t", "var v_0", "var theta", "var t_0", "var v_t"]
+def return_fit_params(df,fittingFunction,fittingFunctionBounds,fittingFunctionInitialGuess,fittingParameterLabels,time_scale=20):
+    # Initialize a dataframe that will record parameters and parameter variances fitted to each curve. 
+    fittingParameterVarianceLabels = []
+    for param in fittingParameterLabels:
+        fittingParameterVarianceLabels.append('var '+param)
+    cols = fittingParameterLabels+fittingParameterVarianceLabels 
+    
     df_params = pd.DataFrame([], index=df.index.droplevel("Time").unique(), columns=cols)
     times=np.tile(df.index.get_level_values("Time").astype("int")/time_scale,[2])    
     
     # Fit each curve, then return the parameters
     for idx in df_params.index:
-        peptide = idx[df_params.index.names.index("Peptide")]
-
-        bounds = [(0, -135, 0, 0), (20, 90, 5, 20)]
-        p0 = [3, -90, 0., 3]
-
         # Each row contains one node, each column is one time point. Required by curve_fit
-        popt, pcov = curve_fit(ballistic, xdata=times, ydata=df.loc[idx,:].values.T.flatten(), p0=p0, bounds=bounds)
+        popt, pcov = curve_fit(fittingFunction, xdata=times, ydata=df.loc[idx,:].values.T.flatten(), p0=fittingFunctionInitialGuess, bounds=fittingFunctionBounds)
 
-        df_params.loc[idx, ["v_0", "theta", "t_0", "v_t"]] = popt
-        df_params.loc[idx, ["var v_0", "var theta", "var t_0", "var v_t"]] = np.diag(pcov)
+        df_params.loc[idx, fittingParameterLabels] = popt
+        df_params.loc[idx, fittingParameterVarianceLabels] = np.diag(pcov)
     
     return df_params
 
-def main(): 
+def combine_spline_df_with_fit(df,df_fit):
+    """Combine splines and parameterized curves
+    Args:
+        df (pd.DataFrame): data sampled from splines
+        df_fit (pd.DataFrame): data sampled from parameterized curves
+    Returns:
+        df_compare (pd.DataFrame): combined dataframe with additional index levels (feature, Processing type)
+    """
+    # Add Processing type index level
+    df["Processing type"]="Splines"
+    df_fit["Processing type"]="Fit"
+    # Combine dataframes
+    df_compare=pd.concat([df,df_fit])
+    df_compare.set_index("Processing type",inplace=True,append=True)
+    # Compute derivatives of df_compare data and return dataframe to same format
+    placeholder=df_compare[["Node 1","Node 2"]].stack().unstack("Time")
+    placeholder[0]=0
+    placeholder=placeholder.sort_index(axis=1).astype("float").diff(axis=1).dropna(axis=1).unstack().stack("Time")
+    placeholder.columns = pd.MultiIndex.from_product([ ['concentration'], placeholder.columns])
+    placeholder=placeholder.swaplevel("Processing type","Time")
+    # Add feature column level and combine integral and derivatives
+    df_compare.columns = pd.MultiIndex.from_product([ ['integral'], df_compare.columns])
+    df_compare=pd.concat([df_compare,placeholder],axis=1)
+    df_compare.columns.names=["Feature","Node"]
+    df_compare = df_compare.stack('Feature')
+    df_compare.columns.name = ''
+
+    return df_compare
+
+def return_param_and_fitted_latentspace_dfs(df,fittingFunctionName):
+    """Returns parameterized dataframes to put into plotting GUI
+    Args:
+        df (pd.DataFrame): data in nodespace sampled from splines
+        fittingFunctionName (String): name of fitting function; must be a key value in all dictionaries below
+    Returns:
+        df_params (pd.DataFrame): contains all parameters from fitting function
+        df_compare (pd.DataFrame): combined dataframe with additional index levels (feature, Processing type)
+    """
     time_scale=20
-    cytokines="IFNg+IL-2+IL-6+IL-17A+TNFa"
 
-    tcellnumbers=["100k","30k","10k","3k"]
-    peptides=["N4","Q4","T4","V4"]
-    concentrations=["1uM","100nM","10nM","1nM"]
+    fittingFunctionDict = {'ballisticConstantVelocity':ballisticConstantVelocity}
+    fittingFunctionBoundsDict = {'ballisticConstantVelocity':[(0, -135, 0, 0), (20, 90, 5, 20)]}
+    fittingFunctionInitialGuessDict = {'ballisticConstantVelocity':[3, -90, 0., 3]}
+    fittingFunctionParameterLabelsDict = {'ballisticConstantVelocity':["v_0", "theta", "t_0", "v_t"]}
+    
+    # Fit curves
+    fittingFunction = fittingFunctionDict[fittingFunctionName]
+    fittingFunctionBounds = fittingFunctionBoundsDict[fittingFunctionName]
+    fittingFunctionInitialGuess = fittingFunctionInitialGuessDict[fittingFunctionName]
+    fittingFunctionParameterLabels = fittingFunctionParameterLabelsDict[fittingFunctionName]
+    
+    datasetParamList = []
+    datasetFitList = []
+    datasets = list(pd.unique(df.index.get_level_values('Data')))
+    for dataset in datasets:
+        datasetDf = df.xs([dataset],level=['Data'])
+        global vt_vm_ratio
+        vt_vm_ratio = compute_vt_vm(datasetDf)
+        dataset_df_params = return_fit_params(datasetDf,fittingFunction,fittingFunctionBounds,fittingFunctionInitialGuess,fittingFunctionParameterLabels,time_scale=time_scale)
 
-    colors=sns.color_palette('deep', 4)
-    markers=["o","X","s","P"]
-    sizes=[50,30,20,10]
+        # Compute latent space coordinates from parameters fits
+        dataset_df_fit=datasetDf.copy()
+        for idx in dataset_df_params.index:
+            fittingVars = dataset_df_params.loc[idx,fittingFunctionParameterLabels]
+            times = dataset_df_fit.loc[idx,:].index.get_level_values("Time").astype("float")/time_scale
+            dataset_df_fit.loc[idx,:] = fittingFunction(times, *fittingVars).reshape(2,-1).T
+        
+        datasetParamList.append(dataset_df_params)
+        datasetFitList.append(dataset_df_fit)
 
-    # Ugly way to define color dictionary for each of the variables
-    color_dict={var:color for var,color in zip(tcellnumbers+peptides+concentrations,colors+colors+colors)}
-    marker_dict={var:marker for var,marker in zip(tcellnumbers+peptides+concentrations,markers+markers+markers)}
-    size_dict={var:size for var,size in zip(tcellnumbers+peptides+concentrations,sizes+sizes+sizes)}
+    df_params = pd.concat(datasetParamList,keys=datasets,names=['Data'])
+    df_fit = pd.concat(datasetFitList,keys=datasets,names=['Data'])
 
-    peptide_dict={pep:i for pep,i in zip(peptides,range(len(peptides)))}
+    # Compare fit vs splines
+    df_compare = combine_spline_df_with_fit(df,df_fit)
+    
+    return df_params,df_compare
 
-    df_all_params=pd.DataFrame([],columns=["TCellNumber","Data","Peptide","Concentration","v_0","t_0","theta"])
+class FittingFunctionSelectionPage(tk.Frame):
+    def __init__(self, master,df,backPage):
+        tk.Frame.__init__(self, master)
 
-    for exp in ["PeptideComparison_OT1_Timeseries_"+num for num in ["21","22","23"]]+["TCellNumber_OT1_Timeseries_7","Activation_TCellNumber_1","TCellNumber_1"]:
-            print(exp)
+        mainWindow = tk.Frame(self)
+        l1 = tk.Label(mainWindow, text="Select function to fit latent space with:", font='Helvetica 18 bold').grid(row=0,column=0,sticky=tk.W)
+        mainWindow.pack(side=tk.TOP,padx=10,pady=10)
 
-            # Load data
-            df=pd.read_hdf("data/processed/%s.hdf"%exp)
-            df=df.loc[:,("integral",cytokines.split("+"))]
-            df_min,df_max=pd.read_pickle("output/train-min-max.pkl")
-            df=(df - df_min)/(df_max - df_min)
+        functionList = ['ballisticConstantVelocity','ballisticConstantForce']
+        functionVar = tk.StringVar(value=functionList[0])
+        rblist = []
+        for i,function in enumerate(functionList):
+            rb = tk.Radiobutton(mainWindow, text=function,padx = 20, variable=functionVar,value=function)
+            rb.grid(row=i+1,column=0,sticky=tk.W)
+            rblist.append(rb)
+        
+        def collectInputs():
+            functionName = functionVar.get()
+            global df_params_plot,df_compare_plot
+            df_params_plot,df_compare_plot = return_param_and_fitted_latentspace_dfs(df,functionName)
+            with open('temp-params.pkl','wb') as f:
+                pickle.dump(df_params_plot,f)
+            with open('temp-compare.pkl','wb') as f:
+                pickle.dump(df_compare_plot,f)
+            master.switch_frame(PlottingDataframeSelectionPage)
 
-            mlp=pickle.load(open("output/mlp.pkl", "rb"))
+        buttonWindow = tk.Frame(self)
+        buttonWindow.pack(side=tk.TOP,pady=10)
+        tk.Button(buttonWindow, text="OK",command=lambda: collectInputs()).pack(in_=buttonWindow,side=tk.LEFT)
+        tk.Button(buttonWindow, text="Back",command=lambda: master.switch_frame(backPage)).pack(in_=buttonWindow,side=tk.LEFT)
+        tk.Button(buttonWindow, text="Quit",command=lambda: quit()).pack(in_=buttonWindow,side=tk.LEFT)
 
-            # Project on latent space
-            df=pd.DataFrame(np.dot(df,mlp.coefs_[0]),index=df.index,columns=["Node 1","Node 2"])
+class PlottingDataframeSelectionPage(tk.Frame):
+    def __init__(self, master):
+        tk.Frame.__init__(self, master)
 
-            # Fit curves
-            vt_vm_ratio = compute_vt_vm(df)
-            df_params = fit_all_curves(df)
+        mainWindow = tk.Frame(self)
+        l1 = tk.Label(mainWindow, text="Select type of parameterized dataframe to plot:", font='Helvetica 18 bold').grid(row=0,column=0,sticky=tk.W)
+        mainWindow.pack(side=tk.TOP,padx=10,pady=10)
 
-            # From Activation_TCellNumber_1 dataset, only take None
-            if "Activation" in exp:
-                    print(df_params)
-                    df_params=df_params.loc["Naive"]
-                    df=df.loc["Naive"]
-            df_params["Data"]=exp
-            df_all_params=pd.concat([df_all_params,df_params.reset_index()])
-
-            print(df_params.index.levels)
-
-            # Show parameter relationships
-            if exp == "TCellNumber_1":
-                    tcellnumbers_=["200k", "80k", "32k", "16k", "8k", "2k"]
+        dfTypeList = ['parameters','parameterized latent space']
+        dfTypeVar = tk.StringVar(value=dfTypeList[0])
+        rblist = []
+        for i,dfType in enumerate(dfTypeList):
+            rb = tk.Radiobutton(mainWindow, text=dfType,padx = 20, variable=dfTypeVar,value=dfType)
+            rb.grid(row=i+1,column=0,sticky=tk.W)
+            rblist.append(rb)
+        
+        def collectInputs():
+            dfType = dfTypeVar.get()
+            if dfType == 'parameters': 
+                df_plot = df_params_plot.copy()
             else:
-                    tcellnumbers_=tcellnumbers
+                df_plot = df_compare_plot.copy()
+                df_plot = df_plot.swaplevel(i=-3,j=-2)
+                df_plot = df_plot.swaplevel(i=-2,j=-1)
+            master.switch_frame(selectLevelsPage,df_plot,PlottingDataframeSelectionPage)
 
-            h=sns.relplot(data=df_params.reset_index(), x="t_0",y="v_0",
-                    hue="TCellNumber", hue_order=tcellnumbers_,
-                    style="Peptide",style_order=peptides)
-            h.ax.set(title=exp)
-            # plt.savefig("figures/fitting/v0-t0-%s.pdf"%exp,bbox_to_inches='tight')
+        buttonWindow = tk.Frame(self)
+        buttonWindow.pack(side=tk.TOP,pady=10)
+        tk.Button(buttonWindow, text="OK",command=lambda: collectInputs()).pack(in_=buttonWindow,side=tk.LEFT)
+        tk.Button(buttonWindow, text="Back",command=lambda: master.switch_frame(backPage)).pack(in_=buttonWindow,side=tk.LEFT)
+        tk.Button(buttonWindow, text="Quit",command=lambda: quit()).pack(in_=buttonWindow,side=tk.LEFT)
 
-            # Compute latent space coordinates from parameters fits
-            df_fit=df.copy()
-            for idx in df_params.index:
-                    v_0, theta, t_0, v_t = df_params.loc[idx,["v_0","theta","t_0","v_t"]]
-                    times = df_fit.loc[idx,:].index.get_level_values("Time").astype("float")/time_scale
-                    df_fit.loc[idx,:]=ballistic(times, v_0, theta, t_0, v_t).reshape(2,-1).T
 
-            # Compare fit vs splines
-            df["Processing type"]="Splines"
-            df_fit["Processing type"]="Fit"
-
-            df_compare=pd.concat([df,df_fit])
-            df_compare.set_index("Processing type",inplace=True,append=True)
-
-            sns.relplot(data=df_compare.reset_index(),kind="line",sort=False,x="Node 1",y="Node 2",
-                                    hue="Peptide",hue_order=["N4","Q4","T4","V4","G4","E1"],
-                                    size="Concentration",size_order=["1uM","100nM","10nM","1nM"],
-                                    style="Processing type",dashes=["",(1,1)],col=df.index.names[0])
-            # plt.savefig("figures/fitting/compare-splines-with-fit-%s.pdf"%exp)
-
-    df_all_params.to_pickle("output/all_fit_params.pkl")
-    plt.show()
+def main():
+    latentSpaceBool = False 
+    app = GUI_Start(WeightMatrixSelectionPage,latentSpaceBool,FittingFunctionSelectionPage)
+    app.mainloop()
 
 if __name__ == "__main__":
     main()
