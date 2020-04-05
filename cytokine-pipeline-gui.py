@@ -3,7 +3,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 import os
-import pickle,sys
+import pickle,sys,subprocess
 import numpy as np
 import pandas as pd
 from sys import platform as sys_pf
@@ -22,6 +22,14 @@ from latent_space import WeightMatrixSelectionPage
 from parameterization import FittingFunctionSelectionPage
 sys.path.insert(0, 'scripts/gui/plotting')
 from plottingGUI import selectLevelsPage
+
+def fileStructureCheck():
+    for folder,subfolders in zip(['data','output','figures'],[['LOD','current','final','old','processed'],['parameter-dataframes','parameter-space-dataframes','trained-networks'],['latent-spaces','parameterized-spaces','splines']]):
+        if folder not in os.listdir():
+            subprocess.run(['mkdir',folder])
+        for subfolder in subfolders:
+            if subfolder not in os.listdir(folder):
+                subprocess.run(['mkdir',folder+'/'+subfolder])
 
 #Root class; handles frame switching in gui
 class GUI_Start(tk.Tk):
@@ -89,7 +97,7 @@ class ActionSelectionPage(tk.Frame):
         tk.Button(buttonWindow, text="Quit",command=lambda: quit()).pack(side=tk.LEFT)
 
 def main():
-    latentSpaceBool = False
+    fileStructureCheck()
     app = GUI_Start(ActionSelectionPage)
     app.mainloop()
 
