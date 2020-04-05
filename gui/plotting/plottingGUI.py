@@ -80,7 +80,10 @@ class selectLevelsPage(tk.Frame):
         global multipleDimensions
         if len(inputdf.columns) > 2:
             multipleDimensions = True
-            plotType,subPlotType = '2d/scatter'.split('/')
+            if 'Node 1' in inputdf.columns:
+                plotType,subPlotType = '2d/line'.split('/')
+            else:
+                plotType,subPlotType = '2d/scatter'.split('/')
         else:
             multipleDimensions = False
             plotType,subPlotType = '2d/line'.split('/')

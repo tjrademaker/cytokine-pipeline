@@ -370,6 +370,11 @@ class PlottingDataframeSelectionPage(tk.Frame):
                 df_plot = df_compare_plot.copy()
                 df_plot = df_plot.swaplevel(i=-3,j=-2)
                 df_plot = df_plot.swaplevel(i=-2,j=-1)
+                df_plot_reset = df_plot.reset_index()
+                df_plot = pd.DataFrame(df_plot_reset.iloc[:,-3:].values,index=pd.MultiIndex.from_frame(df_plot_reset.iloc[:,:-3]),columns=list(df_plot_reset.columns)[-3:])
+                df_plot = df_plot[['Node 1','Node 2','Time']] 
+                print(df_plot)
+
             master.switch_frame(selectLevelsPage,df_plot,PlottingDataframeSelectionPage)
 
         buttonWindow = tk.Frame(self)

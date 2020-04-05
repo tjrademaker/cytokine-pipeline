@@ -16,7 +16,10 @@ def plot(plottingDf,subsettedDf,kwargs,facetKwargs,auxillaryKwargs,plotOptions):
     #Make sure there are markers at each column variable
     if 'Time' in plottingDf.columns:
         if len(pd.unique(plottingDf.Time)) > 36:
-            fg = sns.relplot(data=plottingDf,kind=auxillaryKwargs['subPlotType'],facet_kws=facetKwargs,ci=False,**kwargs,**plotOptions['X']['figureDimensions'],sort=False,mew=0,ms=4)
+            if kwargs['x'] == 'Time' or kwargs['y'] == 'Time':
+                fg = sns.relplot(data=plottingDf,kind=auxillaryKwargs['subPlotType'],facet_kws=facetKwargs,ci=False,**kwargs,**plotOptions['X']['figureDimensions'])
+            else:
+                fg = sns.relplot(data=plottingDf,kind=auxillaryKwargs['subPlotType'],facet_kws=facetKwargs,ci=False,**kwargs,**plotOptions['X']['figureDimensions'],sort=False,mew=0,ms=4)
         else:
             if 'style' not in kwargs.keys():
                 fg = sns.relplot(data=plottingDf,marker='o',kind=auxillaryKwargs['subPlotType'],facet_kws=facetKwargs,ci=False,**kwargs,**plotOptions['X']['figureDimensions'],sort=False,mew=0,ms=4)
