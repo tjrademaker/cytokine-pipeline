@@ -18,11 +18,14 @@ import tkinter as tk
 from scipy.optimize import curve_fit
 from scipy.stats import linregress
 from mpl_toolkits.mplot3d import Axes3D
-sys.path.insert(0, 'gui/plotting')
-from plottingGUI import GUI_Start,selectLevelsPage
+sys.path.insert(0, '../gui/plotting')
+from plottingGUI import selectLevelsPage
 from latent_space import WeightMatrixSelectionPage
-sys.path.insert(0, 'process')
+sys.path.insert(0, '../process')
 from adapt_dataframes import set_standard_order
+            
+splitPath = os.getcwd().split('/')
+path = '/'.join(splitPath[:splitPath.index('cytokine-pipeline-master')+1])+'/'
 
 def fit_vt_vm(node1, node2, tol_r2=0.99):
     """Fit a straight line to the final time points of latent space. 
@@ -185,7 +188,7 @@ def ballistic_F(times, F,  t0, theta, vt):
     
     x[~prop] = (v0[0] + vm) * (1-np.exp(-delta_t)) - vm * delta_t + r0[0]
     y[~prop] = (v0[1] + vt) * (1-np.exp(-delta_t)) - vt * delta_t + r0[1]
-    
+    WeightMatrixSelectionPage
     return np.array([x, y]).flatten()
 
 # Find the best fit for each time course in the DataFrame. 
@@ -295,6 +298,8 @@ class FittingFunctionSelectionPage(tk.Frame):
     def __init__(self, master,df,bp):
         tk.Frame.__init__(self, master)
         global backPage
+        global dfToParameterize
+        dfToParameterize = df.copy()
         backPage = bp
 
         mainWindow = tk.Frame(self)
@@ -312,7 +317,7 @@ class FittingFunctionSelectionPage(tk.Frame):
         def collectInputs():
             functionName = functionVar.get()
             global df_params_plot,df_compare_plot
-            df_params_plot,df_compare_plot = return_param_and_fitted_latentspace_dfs(df,functionName)
+            df_params_plot,df_compare_plot = return_param_and_fitted_latentspace_dfs(dfToParameterize,functionName)
             
             df_params_columns = list(df_params_plot.columns)
             df_compare_columns = list(df_compare_plot.columns)
@@ -330,12 +335,10 @@ class FittingFunctionSelectionPage(tk.Frame):
             print(df_params_plot)
 
             #Save dataframes:
-            splitPath = os.getcwd().split('/')
-            path = '/'.join(splitPath[:splitPath.index('cytokine-pipeline-master')+1])+'/'
-            projectionName = pickle.load(open(path+'gui/plotting/projectionName.pkl','rb'))
-            with open(path+'output/'+projectionName+'-'+functionName+'-params.pkl','wb') as f:
+            projectionName = pickle.load(open(path+'scripts/gui/plotting/projectionName.pkl','rb'))
+            with open(path+'output/parameter-dataframes/params-'+projectionName+'-'+functionName+'.pkl','wb') as f:
                 pickle.dump(df_params_plot,f)
-            with open(path+'output/'+projectionName+'-'+functionName+'-compare.pkl','wb') as f:
+            with open(path+'output/parameter-space-dataframes/paramSpace-'+projectionName+'-'+functionName+'.pkl','wb') as f:
                 pickle.dump(df_compare_plot,f)
             
             master.switch_frame(PlottingDataframeSelectionPage)
@@ -380,14 +383,5 @@ class PlottingDataframeSelectionPage(tk.Frame):
         buttonWindow = tk.Frame(self)
         buttonWindow.pack(side=tk.TOP,pady=10)
         tk.Button(buttonWindow, text="OK",command=lambda: collectInputs()).pack(in_=buttonWindow,side=tk.LEFT)
-        tk.Button(buttonWindow, text="Back",command=lambda: master.switch_frame(FittingFunctionSelectionPage,backPage)).pack(in_=buttonWindow,side=tk.LEFT)
+        tk.Button(buttonWindow, text="Back",command=lambda: master.switch_frame(FittingFunctionSelectionPage,dfToParameterize,backPage)).pack(in_=buttonWindow,side=tk.LEFT)
         tk.Button(buttonWindow, text="Quit",command=lambda: quit()).pack(in_=buttonWindow,side=tk.LEFT)
-
-
-def main():
-    latentSpaceBool = False 
-    app = GUI_Start(WeightMatrixSelectionPage,latentSpaceBool,FittingFunctionSelectionPage)
-    app.mainloop()
-
-if __name__ == "__main__":
-    main()

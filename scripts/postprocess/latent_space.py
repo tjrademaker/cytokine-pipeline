@@ -15,8 +15,9 @@ if sys_pf == 'darwin':
 import matplotlib.pyplot as plt
 import tkinter as tk
 import seaborn as sns
-sys.path.insert(0, 'gui/plotting')
-from plottingGUI import GUI_Start,selectLevelsPage
+sys.path.insert(0, '../gui/plotting')
+from plottingGUI import selectLevelsPage
+from adapt_dataframes import set_standard_order  
 
 splitPath = os.getcwd().split('/')
 path = '/'.join(splitPath[:splitPath.index('cytokine-pipeline-master')+1])+'/'
@@ -37,7 +38,9 @@ class WeightMatrixSelectionPage(tk.Frame):
         mainWindow = tk.Frame(self)
         datasetRadioButtons = []
         trainingDatasets = []
-        for fileName in os.listdir(path+'output'):
+        print(path)
+        for fileName in os.listdir(path+'output/trained-networks'):
+            print(fileName)
             if '-' in fileName and '.pkl' in fileName and 'mlp' in fileName:
                 datasetName = fileName.split('.')[0].split('-')[-1]
                 if datasetName not in trainingDatasets:
@@ -55,17 +58,18 @@ class WeightMatrixSelectionPage(tk.Frame):
             global datasetName
             datasetName = datasetVar.get()
             #Grab weight matrix
-            mlp=pickle.load(open(path+'output/mlp-'+datasetName+'.pkl',"rb"))
+            mlp=pickle.load(open(path+'output/trained-networks/mlp-'+datasetName+'.pkl',"rb"))
             global weightMatrix
             weightMatrix = mlp
             #Grab training set min/max to normalize df to be projected
             global df_min,df_max
-            df_min,df_max=pd.read_pickle(path+"output/train-min_max-"+datasetName+".pkl")
+            df_min,df_max=pd.read_pickle(path+"output/trained-networks/min_max-"+datasetName+".pkl")
             master.switch_frame(WTorMutantDatasetSelectionPage)
 
         buttonWindow = tk.Frame(self)
         buttonWindow.pack(side=tk.TOP,pady=10)
         tk.Button(buttonWindow, text="OK",command=lambda: collectInputs()).pack(in_=buttonWindow,side=tk.LEFT)
+        tk.Button(buttonWindow, text="Back",command=lambda: master.switch_frame(master.homepage)).pack(in_=buttonWindow,side=tk.LEFT)
         tk.Button(buttonWindow, text="Quit",command=lambda: quit()).pack(in_=buttonWindow,side=tk.LEFT)
 
 class WTorMutantDatasetSelectionPage(tk.Frame):
@@ -98,14 +102,16 @@ class WTorMutantDatasetSelectionPage(tk.Frame):
                 #Load raw mutant data
                 df_mutant = import_mutant_output(datasetType)
                 #Subset features by what was used to train WT
-                featureColumns = pd.read_pickle(path+"output/train-"+datasetName+".pkl").columns
+                featureColumns = pd.read_pickle(path+"output/trained-networks/train-"+datasetName+".pkl").columns
                 df_mutant = df_mutant.loc[:,featureColumns]
                 #Normalize mutant
                 df_mutant=(df_mutant - df_min)/(df_max - df_min)
                 #Project mutant on latent space
                 df_mutant_proj=pd.DataFrame(np.dot(df_mutant,weightMatrix.coefs_[0]),index=df_mutant.index,columns=["Node 1","Node 2"])
-                with open(path+'gui/plotting/projectionName.pkl','wb') as f:
+                with open(path+'scripts/gui/plotting/projectionName.pkl','wb') as f:
                     pickle.dump('-'.join([datasetName,datasetType]),f)
+                df_mutant_proj = set_standard_order(df_mutant_proj.copy().reset_index(),returnSortedLevelValues=False)
+                df_mutant_proj = pd.DataFrame(df_mutant_proj.iloc[:,-2:].values,index=pd.MultiIndex.from_frame(df_mutant_proj.iloc[:,:-2]),columns=['Node 1','Node 2'])
                 #switch to plotting
                 if(latentSpaceBool):
                     proj_df = df_mutant_proj.iloc[::5,:]
@@ -131,7 +137,7 @@ class TrainingDatasetSelectionPage(tk.Frame):
         mainWindow = tk.Frame(self)
         datasetRadioButtons = []
         trainingDatasets = []
-        for fileName in os.listdir(path+'output'):
+        for fileName in os.listdir(path+'output/trained-networks'):
             if '-' in fileName and '.pkl' in fileName:
                 datasetName = fileName.split('.')[0].split('-')[-1]
                 if datasetName not in trainingDatasets:
@@ -148,17 +154,19 @@ class TrainingDatasetSelectionPage(tk.Frame):
         def collectInputs():
             datasetName2 = datasetVar.get()
             #Load files
-            df_WT=pd.read_pickle(path+"output/train-"+datasetName2+".pkl")
+            df_WT=pd.read_pickle(path+"output/trained-networks/train-"+datasetName2+".pkl")
             #Subset features by what was used to train WT
-            featureColumns = pd.read_pickle(path+"output/train-"+datasetName2+".pkl").columns
+            featureColumns = pd.read_pickle(path+"output/trained-networks/train-"+datasetName2+".pkl").columns
             df_WT = df_WT.loc[:,featureColumns]
             #Normalize WT 
             df_WT=(df_WT - df_min)/(df_max - df_min)
             #Project WT on latent space
             df_WT_proj=pd.DataFrame(np.dot(df_WT,weightMatrix.coefs_[0]),index=df_WT.index,columns=["Node 1","Node 2"])
             #switch to plotting
-            with open(path+'gui/plotting/projectionName.pkl','wb') as f:
+            with open(path+'scripts/gui/plotting/projectionName.pkl','wb') as f:
                 pickle.dump('-'.join([datasetName,datasetName2]),f)
+            df_WT_proj = set_standard_order(df_WT_proj.copy().reset_index(),returnSortedLevelValues=False)
+            df_WT_proj = pd.DataFrame(df_WT_proj.iloc[:,-2:].values,index=pd.MultiIndex.from_frame(df_WT_proj.iloc[:,:-2]),columns=['Node 1','Node 2'])
             if(latentSpaceBool):
                 proj_df = df_WT_proj.iloc[::5,:]
                 master.switch_frame(nextSwitchPage,proj_df,TrainingDatasetSelectionPage)
@@ -171,12 +179,6 @@ class TrainingDatasetSelectionPage(tk.Frame):
         tk.Button(buttonWindow, text="OK",command=lambda: collectInputs()).pack(in_=buttonWindow,side=tk.LEFT)
         tk.Button(buttonWindow, text="Back",command=lambda: master.switch_frame(WTorMutantDatasetSelectionPage)).pack(in_=buttonWindow,side=tk.LEFT)
         tk.Button(buttonWindow, text="Quit",command=lambda: quit()).pack(in_=buttonWindow,side=tk.LEFT)
-
-def main():
-    
-    latentSpaceBool = True
-    app = GUI_Start(WeightMatrixSelectionPage,latentSpaceBool,selectLevelsPage)
-    app.mainloop()
 
 def import_WT_output():
     """Import splines from wildtype naive OT-1 T cells by looping through all datasets
@@ -259,7 +261,7 @@ def import_mutant_output(mutant):
     
     essential_levels=["TCellNumber","Peptide","Concentration","Time"]
 
-    folder="data/processed/"
+    folder=path+"data/processed/"
 
     for file in os.listdir(folder):
 
@@ -325,6 +327,3 @@ def plot_parameters(mutant):
         concentrations = ["1nM IFNg","1uM","100nM","1nM"]#,"100pM IFNg","10pM IFNg","1nM IFNg","500fM IFNg","250fM IFNg","125fM IFNg","0 IFNg"]
 
     return (level_dict[mutant],peptides,concentrations)
-
-if __name__ == "__main__":
-    main()

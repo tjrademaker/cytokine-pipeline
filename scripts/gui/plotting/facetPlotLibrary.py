@@ -18,11 +18,8 @@ import facetPlot2D as fp2D
 import facetPlot3D as fp3D
 
 idx = pd.IndexSlice
-#HACK; NEED TO THINK OF BETTER WAY TO DO THIS:
-if 'cytokine-pipeline' in os.getcwd().split('/')[-1]:
-    plotFolderName = 'figures/latent-spaces'
-else:
-    plotFolderName = '../figures/latent-spaces'
+splitPath = os.getcwd().split('/')
+path = '/'.join(splitPath[:splitPath.index('cytokine-pipeline-master')+1])+'/'
 
 def produceSubsettedDataFrames(fulldf,withinFigureBoolean,specificValueBooleanList,trueLabelDict):
     print(withinFigureBoolean)
@@ -388,6 +385,11 @@ def plotFacetedFigures(folderName,plotType,subPlotType,dataType,subsettedDfList,
                 colwrap = min([len(kwargs['col_order']),col_wrap_min])
                 kwargs['col_wrap'] = colwrap
         
+        #HACK; NEED TO THINK OF BETTER WAY TO DO THIS:
+        filePlottingFolderName = pickle.load(open(path+'scripts/gui/plotting/plottingFolderName.pkl','rb'))
+        global plotFolderName
+        plotFolderName = path+'figures/'+filePlottingFolderName
+
         if plotAllVar:
             fullTitleString = createFacetPlotName(folderName,dataType,plotType,subPlotType,legendParameterToLevelNameDict,subsettedDfTitle,levelsPlottedIndividually,useModifiedDf,plotOptions)
             if 'temporaryFirstPlot.png' in os.listdir(plotFolderName):

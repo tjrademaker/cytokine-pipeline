@@ -52,7 +52,9 @@ import os,pickle,sys,re
 import numpy as np
 import pandas as pd
 
-folder="../data/current/"
+splitPath = os.getcwd().split('/')
+path = '/'.join(splitPath[:splitPath.index('cytokine-pipeline-master')+1])+'/'
+folder=path+"data/current/"
 
 filename_changes={
                                         "TCellTypeComparison_OT1,P14,F5_Timeseries_3": "TCellTypeComparison_OT1,P14_Timeseries_3",
@@ -117,28 +119,42 @@ def return_data_date_dict():
             dateDict[datasetName] = float(datasetDate)*-1
     return dateDict
 
-def set_standard_order(df):
-        df["TCELLSORT"]=df.TCellNumber.str.replace("k","").astype("float")
+def set_standard_order(df,returnSortedLevelValues=False):
+        levelDict = {'DATASORT':'Data','TCELLSORT':'TCellNumber','PEPTIDESORT':'Peptide','CONCSORT':'Concentration'}
         peptide_dict={"N4":13,"A2":12,"Y3":11,"Q4":10,"T4":9,"V4":8,"G4":7,"E1":6,
                                         "AV":5,"A3V":4,"gp33WT":3,"None":2}
-        df["PEPTIDESORT"]=df.Peptide.map(peptide_dict)
-        df["CONCSORT"]=sort_SI_column(df.Concentration,'M')
+        levelsToSort = []
         if 'Data' in df.columns:
             dataset_dict = return_data_date_dict()
             df["DATASORT"]=df.Data.map(dataset_dict)
-            levelsToSort = ["DATASORT","TCELLSORT","PEPTIDESORT","CONCSORT"]
-        else:
-            levelsToSort = ["TCELLSORT","PEPTIDESORT","CONCSORT"]
+            levelsToSort.append('DATASORT')
+        if 'TCellNumber' in df.columns:
+            df["TCELLSORT"]=df.TCellNumber.str.replace("k","").astype("float")
+            levelsToSort.append('TCELLSORT')
+        if 'Peptide' in df.columns:
+            df["PEPTIDESORT"]=df.Peptide.map(peptide_dict)
+            levelsToSort.append('PEPTIDESORT')
+        if 'Concentration' in df.columns:
+            df["CONCSORT"]=sort_SI_column(df.Concentration,'M')
+            levelsToSort.append('CONCSORT')
         sortColumnRemovalVar = -1*len(levelsToSort)
-        df = df.sort_values(levelsToSort,ascending=False).iloc[:,:sortColumnRemovalVar]
-        return df 
+
+        if not returnSortedLevelValues:
+            df = df.sort_values(levelsToSort,ascending=False).iloc[:,:sortColumnRemovalVar]
+            return df 
+        else:
+            sortedLevelValues = {}
+            for levelToSort in levelsToSort:
+                levelValues = list(pd.unique(df.sort_values([levelToSort],ascending=False).loc[:,levelDict[levelToSort]]))
+                sortedLevelValues[levelDict[levelToSort]] = levelValues
+            return sortedLevelValues
 
 def main():
 
         for file in os.listdir(folder):
                 if ".pkl" not in file:
                         continue
-
+                print(file)
                 tmp = pd.read_pickle(folder+file)
                 filename=file[41:-13]
 
@@ -250,7 +266,7 @@ def main():
                         # print("NEW\t",df.index.names,"\n")
 
                 # Save file
-                df.to_pickle("../data/final/"+new_file)
+                df.to_pickle(path+"data/final/"+new_file)
 
 
 if __name__ == "__main__":

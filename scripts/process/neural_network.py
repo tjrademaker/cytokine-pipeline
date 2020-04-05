@@ -15,14 +15,22 @@ import matplotlib.pyplot as plt
 import tkinter as tk
 from tkinter import ttk
 sys.path.insert(0, '../gui/plotting')
-from plottingGUI import GUI_Start,createLabelDict,checkUncheckAllButton,selectLevelsPage 
+from plottingGUI import createLabelDict,checkUncheckAllButton,selectLevelsPage 
 from adapt_dataframes import set_standard_order
+
+splitPath = os.getcwd().split('/')
+path = '/'.join(splitPath[:splitPath.index('cytokine-pipeline-master')+1])+'/'
 
 idx = pd.IndexSlice
 
 #FOR NEURAL NETWORK DATA SELECTION
 class InputDatasetSelectionPage(tk.Frame):
-    def __init__(self, master, dataset):
+    def __init__(self, master):
+        #Import data
+        df = import_WT_output()
+        dataset = df.stack().stack().to_frame('value')
+        dataset.to_pickle(path+"output/all-WT.pkl")
+        
         tk.Frame.__init__(self, master)
         
         global trueLabelDict
@@ -30,24 +38,24 @@ class InputDatasetSelectionPage(tk.Frame):
         
         #Sort by date/number/quality/quantity
         dataset = set_standard_order(dataset.reset_index())
-         
-        dataset = pd.DataFrame(dataset['value'].values,index=pd.MultiIndex.from_frame(dataset.iloc[:,:-1]))
-        dataset.columns = ['value']
-        trueLabelDict = createLabelDict(dataset)
+        sortedValues = set_standard_order(dataset.copy(),returnSortedLevelValues=True)
+        
+        dataset = pd.DataFrame(dataset['value'].values,index=pd.MultiIndex.from_frame(dataset.iloc[:,:-1]),columns=['value'])
+        trueLabelDict = createLabelDict(dataset.copy(),sortedValues=sortedValues)
         
         titleWindow = tk.Frame(self)
         titleWindow.pack(side=tk.TOP,padx=10,fill='none',expand=True)
         titleLabel = tk.Label(titleWindow, text='Training set name:',pady=10, font='Helvetica 18 bold').grid(row=0,column = 0)
         e1 = tk.Entry(titleWindow)
         e1.grid(row=0,column=1)
-        e1.insert(0, 'train')
+        e1.insert(0, 'default')
         
         timeWindow = tk.Frame(self)
         timeWindow.pack(side=tk.TOP,padx=10,fill='none',expand=True)
         timeLabel = tk.Label(timeWindow, text='Time range (START TIME-END TIME):',pady=10, font='Helvetica 18 bold').grid(row=0,column = 0)
         e2 = tk.Entry(timeWindow)
         e2.grid(row=0,column=1)
-        e2.insert(0, '23-72')
+        e2.insert(0, '1-72')
 
         labelWindow = tk.Frame(self)
         labelWindow.pack(side=tk.TOP,padx=10,fill=tk.X,expand=True) 
@@ -113,9 +121,9 @@ class InputDatasetSelectionPage(tk.Frame):
 
             trainingSetName = e1.get()
             #Save min/max and normalize data
-            pickle.dump([df.min(),df.max()],open("../output/train-min_max-"+trainingSetName+".pkl","wb"))
+            pickle.dump([df.min(),df.max()],open(path+"output/trained-networks/min_max-"+trainingSetName+".pkl","wb"))
             df=(df - df.min())/(df.max()-df.min())
-            df.to_pickle("../output/train-"+trainingSetName+".pkl")
+            df.to_pickle(path+"output/trained-networks/train-"+trainingSetName+".pkl")
 
             #Needed to adapt this to work with any selection of peptides; not sure if what I'm doing here is correct
             peptides=["N4","Q4","T4","V4","G4","E1"][::-1]
@@ -133,10 +141,10 @@ class InputDatasetSelectionPage(tk.Frame):
                     solver="adam",random_state=90,learning_rate="adaptive",alpha=0.01).fit(df,y)
 
             score=mlp.score(df,y); print("Training score %.1f"%(100*score));
-            pickle.dump(mlp,open("../output/mlp-"+trainingSetName+".pkl","wb"))
+            pickle.dump(mlp,open(path+"output/trained-networks/mlp-"+trainingSetName+".pkl","wb"))
             
             df_WT_proj=pd.DataFrame(np.dot(df,mlp.coefs_[0]),index=df.index,columns=["Node 1","Node 2"])
-            df_WT_proj.to_pickle("../output/proj-WT-"+trainingSetName+".pkl")
+            df_WT_proj.to_pickle(path+"output/trained-networks/proj-WT-"+trainingSetName+".pkl")
 
             proj_df = df_WT_proj.iloc[::5,:]
             master.switch_frame(selectLevelsPage,proj_df,InputDatasetSelectionPage)
@@ -145,17 +153,8 @@ class InputDatasetSelectionPage(tk.Frame):
         buttonWindow.pack(side=tk.TOP,pady=10)
         
         tk.Button(buttonWindow, text="OK",command=lambda: collectInputs(dataset)).grid(row=maxNumLevelValues+4,column=0)
+        tk.Button(buttonWindow, text="Back",command=lambda: master.switch_frame(master.homepage)).grid(row=maxNumLevelValues+4,column=1)
         tk.Button(buttonWindow, text="Quit",command=lambda: quit()).grid(row=maxNumLevelValues+4,column=2)
-
-def main():
-
-    #Import data
-    df=import_WT_output()
-    df = df.stack().stack().to_frame('value')
-    df.to_pickle("../output/all-WT.pkl")
-     
-    app = GUI_Start(InputDatasetSelectionPage,df)
-    app.mainloop()
 
 def import_WT_output():
     """Import splines from wildtype naive OT-1 T cells by looping through all datasets
@@ -164,7 +163,7 @@ def import_WT_output():
             df_full (dataframe): the dataframe with processed cytokine data
     """
 
-    folder="../data/processed/"
+    folder=path+"data/processed/"
 
     naive_pairs={
             "ActivationType": "Naive",
@@ -211,6 +210,3 @@ def plot_weights(mlp,cytokines,peptides,**kwargs):
     ax[0].set(xlabel="Cytokine",xticks=np.arange(len(cytokines)),xticklabels=cytokines,ylabel="Weights")
     ax[1].set(xlabel="Peptide",xticks=np.arange(len(mlp.coefs_[1].T)),xticklabels=peptides)
     plt.savefig("%s/weights.pdf"%tuple(kwargs.values()),bbox_inches="tight")
-
-if __name__ == "__main__":
-    main()

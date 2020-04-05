@@ -9,11 +9,13 @@ import tkinter.ttk
 import pandas as pd
 import facetPlotLibrary as fpl 
 import interactiveGUIElements as ipe 
+sys.path.insert(0, '../process')
+from adapt_dataframes import set_standard_order
 
 expParamDict = {'cyt':'cyt','cell':'cell','prolif':'cell','singlecell':'cell'}
 
 #Get level names and values into an easily accessible dictionary
-def createLabelDict(df,discretized_time=False):
+def createLabelDict(df,discretized_time=False,sortedValues={}):
     #fulldf = df.stack()
     fulldf = df.copy()
     labelDict = {}
@@ -24,25 +26,10 @@ def createLabelDict(df,discretized_time=False):
             parameterList += ['Time']
         if levelName not in parameterList:
             labelDict[levelName] = list(pd.unique(fulldf.index.get_level_values(levelName)))
+    if len(sortedValues) != 0:
+        for level in sortedValues:
+            labelDict[level] = sortedValues[level]
     return labelDict
-
-#Root class; handles frame switching in gui
-class GUI_Start(tk.Tk):
-    def __init__(self,startPage,*args):
-        self.root = tk.Tk.__init__(self)
-        self._frame = None
-        self.homedirectory = os.getcwd()
-        if self.homedirectory[-1] != '/':
-            self.homedirectory+='/'
-        self.switch_frame(startPage,*args)
-
-    def switch_frame(self, frame_class,*args):
-        """Destroys current frame and replaces it with a new one."""
-        new_frame = frame_class(self,*args)
-        if self._frame is not None:
-            self._frame.destroy()
-        self._frame = new_frame
-        self._frame.pack()
 
 class checkUncheckAllButton(tk.Button):
     def __init__(self,parent,checkButtonList,**kwargs):
@@ -71,7 +58,9 @@ class selectLevelsPage(tk.Frame):
         experimentDf = inputdf
         global trueLabelDict
         trueLabelDict = {}
-        trueLabelDict = createLabelDict(experimentDf)
+        sortedValues = set_standard_order(experimentDf.copy().reset_index(),returnSortedLevelValues=True)
+        trueLabelDict = createLabelDict(experimentDf.copy(),sortedValues=sortedValues)
+        #trueLabelDict = createLabelDict(experimentDf)
             
         global plotType
         global subPlotType

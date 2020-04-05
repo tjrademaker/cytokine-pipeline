@@ -23,8 +23,9 @@ if sys_pf == 'darwin':
 import tkinter as tk
 from tkinter import ttk
 from adapt_dataframes import set_standard_order
-sys.path.insert(0, '../gui/plotting')
-from plottingGUI import GUI_Start,createLabelDict,checkUncheckAllButton,selectLevelsPage 
+sys.path.insert(0, 'scripts/gui/plotting')
+from plottingGUI import createLabelDict,checkUncheckAllButton,selectLevelsPage 
+from adapt_dataframes import set_standard_order
 
 import numpy as np
 import scipy
@@ -32,6 +33,9 @@ from scipy import interpolate
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+
+splitPath = os.getcwd().split('/')
+path = '/'.join(splitPath[:splitPath.index('cytokine-pipeline-master')+1])+'/'
 
 def moving_average(points, kernelsize):
     """ Moving average filtering on the array of experimental points, averages over a block of size kernelsize.
@@ -178,14 +182,14 @@ def lod_import(date):
             detection for each cytokine (keys are cytokine names).
     """
     # Look for all LOD with the right date
-    lod_file = [file for file in os.listdir("../data/LOD/") if ((date in file) & file.endswith(".pkl"))]
+    lod_file = [file for file in os.listdir(path+"data/LOD/") if ((date in file) & file.endswith(".pkl"))]
 
     if lod_file==[]:
         print("Will rescale with the minimum value of cytokines in the data, because it could not find the LOD file\n")
         return {}
 
     else:
-        lod_dict=pd.read_pickle("../data/LOD/"+lod_file[0])
+        lod_dict=pd.read_pickle(path+"data/LOD/"+lod_file[0])
 
         # Return only the lower bounds, in nM units
         lower_bounds = {cy:a[2] for cy, a in lod_dict.items()}
@@ -351,18 +355,19 @@ class SplineDatasetSelectionPage(tk.Frame):
         l1 = tk.Label(actionWindow, text="Select action:", font='Helvetica 18 bold').grid(row=0,column=0,sticky=tk.W)
         rblist = []
         actions = ['Create Splines','Plot Splines']
-        actionVar = tk.StringVar(value=actions[1])
+        actionVar = tk.StringVar(value=actions[0])
         for i,action in enumerate(actions):
             rb = tk.Radiobutton(actionWindow,text=action, variable=actionVar,value=action)
             rb.grid(row=i+1,column=0,sticky=tk.W)
             rblist.append(rb)
         
-        folder = "../data/final/" 
+        folder = path+"data/final/" 
         fileNameDict = {}
         for fileName in os.listdir(folder):
             if fileName.endswith(".pkl"):
                 fileNameDict[fileName[41:-10]] = fileName 
-        trueLabelDict = {'Select dataset':list(fileNameDict.keys())}
+        sortedFileNameDict = set_standard_order(pd.DataFrame({'Data':list(fileNameDict.keys())}),returnSortedLevelValues=True)
+        trueLabelDict = {'Select dataset':sortedFileNameDict['Data']}
 
         labelWindow = tk.Frame(self)
         labelWindow.pack(side=tk.TOP,padx=10,fill=tk.X,expand=True) 
@@ -425,13 +430,13 @@ class SplineDatasetSelectionPage(tk.Frame):
                 for fileName in includeLevelValueList[0]:
                     fullFileName = fileNameDict[fileName]
                     [data, data_log, data_smooth, df]=process_file(folder,fullFileName)
-                    df.to_hdf("../data/processed/"+fileName+".hdf", key="Features", mode="w")
+                    df.to_hdf(path+"data/processed/"+fileName+".hdf", key="Features", mode="w")
             #TODO: allow every stage (log/smooth/spline) to be plotted, not just spline
             else:
                 dflist = []
                 for fileName in includeLevelValueList[0]:
                     fullFileName = fileNameDict[fileName]
-                    df = pd.read_hdf("../data/processed/"+fullFileName[41:-10]+".hdf",key='Features')
+                    df = pd.read_hdf(path+"data/processed/"+fullFileName[41:-10]+".hdf",key='Features')
                     dflist.append(df)
                 try:
                     fulldf = pd.concat(dflist,keys=includeLevelValueList[0],names=['Data'])
@@ -451,16 +456,5 @@ class SplineDatasetSelectionPage(tk.Frame):
         buttonWindow = tk.Frame(self)
         buttonWindow.pack(side=tk.TOP,pady=10)
         tk.Button(buttonWindow, text="OK",command=lambda: collectInputs()).pack(in_=buttonWindow,side=tk.LEFT)
+        tk.Button(buttonWindow, text="Back",command=lambda: master.switch_frame(master.homepage)).pack(in_=buttonWindow,side=tk.LEFT)
         tk.Button(buttonWindow, text="Quit",command=lambda: quit()).pack(in_=buttonWindow,side=tk.LEFT)
-
-def main():
-    app = GUI_Start(SplineDatasetSelectionPage)
-    app.mainloop()
-
-"""
-TODO 
-- Plot semi-processed (flagged missing data, log transformed and normalized) raw data and splines
-- Incorporate adapt_dataframe into this script so that it doesn't need to be run separately
-"""
-if __name__ == "__main__":
-    main()
