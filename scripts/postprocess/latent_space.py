@@ -83,7 +83,7 @@ class WTorMutantDatasetSelectionPage(tk.Frame):
         mainWindow = tk.Frame(self)
         datasetRadioButtons = []
         #Mutant List
-        mutantTypeList = ["Tumor","Activation","TCellNumber","Macrophages","CAR","TCellType","CD25Mutant","ITAMDeficient"]
+        mutantTypeList = ["Tumor","Activation","TCellNumber","Macrophages","CAR","TCellType","CD25Mutant","ITAMDeficient","DrugPerturbation","NewPeptide"]
         datasetTypes = ['WT']+mutantTypeList
 
         datasetVar = tk.StringVar(value=datasetTypes[0])
@@ -108,10 +108,13 @@ class WTorMutantDatasetSelectionPage(tk.Frame):
                 df_mutant=(df_mutant - df_min)/(df_max - df_min)
                 #Project mutant on latent space
                 df_mutant_proj=pd.DataFrame(np.dot(df_mutant,weightMatrix.coefs_[0]),index=df_mutant.index,columns=["Node 1","Node 2"])
+                projectionName = '-'.join([datasetName,datasetType])
                 with open(path+'scripts/gui/plotting/projectionName.pkl','wb') as f:
-                    pickle.dump('-'.join([datasetName,datasetType]),f)
+                    pickle.dump(projectionName,f)
                 df_mutant_proj = set_standard_order(df_mutant_proj.copy().reset_index(),returnSortedLevelValues=False)
                 df_mutant_proj = pd.DataFrame(df_mutant_proj.iloc[:,-2:].values,index=pd.MultiIndex.from_frame(df_mutant_proj.iloc[:,:-2]),columns=['Node 1','Node 2'])
+                with open(path+'output/projected-dataframes/projection-'+projectionName+'.pkl','wb') as f:
+                    pickle.dump(df_mutant_proj,f)
                 #switch to plotting
                 if(latentSpaceBool):
                     proj_df = df_mutant_proj.iloc[::5,:]
@@ -134,39 +137,64 @@ class TrainingDatasetSelectionPage(tk.Frame):
         l1 = tk.Label(labelWindow, text="Select training dataset to project on:", font='Helvetica 18 bold').pack()
         labelWindow.pack(side=tk.TOP,padx=10,pady=10)
 
-        mainWindow = tk.Frame(self)
         datasetRadioButtons = []
         trainingDatasets = []
-        for fileName in os.listdir(path+'output/trained-networks'):
-            if '-' in fileName and '.pkl' in fileName:
-                datasetName = fileName.split('.')[0].split('-')[-1]
-                if datasetName not in trainingDatasets:
-                    trainingDatasets.append(datasetName)
+        all_df_WT = pd.read_pickle(path+"output/all-WT.pkl")
+        idx = pd.IndexSlice
+        sortedWT = set_standard_order(all_df_WT.loc[idx[:,'100k',:,:,1,'IFNg','concentration'],:].reset_index())
+        for dataName in pd.unique(sortedWT['Data']):
+            trainingDatasets.append(dataName)
 
+        """BEGIN TEMP SCROLLBAR CODE"""
+        labelWindow1 = tk.Frame(self)
+        labelWindow1.pack(side=tk.TOP,padx=10,fill=tk.X,expand=True) 
+        
+        #Make canvas
+        w1 = tk.Canvas(labelWindow1, width=600, height=400,background="white", scrollregion=(0,0,3000,1000))
+
+        #Make scrollbar
+        scr_v1 = tk.Scrollbar(labelWindow1,orient=tk.VERTICAL)
+        scr_v1.pack(side=tk.RIGHT,fill=tk.Y)
+        scr_v1.config(command=w1.yview)
+        #Add scrollbar to canvas
+        w1.config(yscrollcommand=scr_v1.set)
+        w1.pack(fill=tk.BOTH,expand=True)
+
+        #Make and add frame for widgets inside of canvas
+        #canvas_frame = tk.Frame(w1)
+        mainWindow = tk.Frame(w1)
+        mainWindow.pack() 
+        w1.create_window((0,0),window=mainWindow, anchor = tk.NW)
+        """END TEMP SCROLLBAR CODE"""
+        
         datasetVar = tk.StringVar(value=trainingDatasets[0])
         for i,dataset in enumerate(trainingDatasets):
             rb = tk.Radiobutton(mainWindow, text=dataset,padx = 20, variable=datasetVar,value=dataset)
             rb.grid(row=i,column=0,sticky=tk.W)
             datasetRadioButtons.append(rb)
 
-        mainWindow.pack(side=tk.TOP,padx=10)
-
         def collectInputs():
             datasetName2 = datasetVar.get()
             #Load files
-            df_WT=pd.read_pickle(path+"output/trained-networks/train-"+datasetName2+".pkl")
+            df_WT = pd.concat([all_df_WT.loc[datasetName2]],keys=[datasetName2],names=['Data'])
+            df_WT = df_WT.unstack(['Feature','Cytokine']).loc[:,'value']
+            #df_WT=pd.read_pickle(path+"output/trained-networks/train-"+datasetName2+".pkl")
             #Subset features by what was used to train WT
-            featureColumns = pd.read_pickle(path+"output/trained-networks/train-"+datasetName2+".pkl").columns
+            featureColumns = pd.read_pickle(path+"output/trained-networks/train-"+datasetName+".pkl").columns
             df_WT = df_WT.loc[:,featureColumns]
+            print(df_WT)
             #Normalize WT 
             df_WT=(df_WT - df_min)/(df_max - df_min)
             #Project WT on latent space
             df_WT_proj=pd.DataFrame(np.dot(df_WT,weightMatrix.coefs_[0]),index=df_WT.index,columns=["Node 1","Node 2"])
             #switch to plotting
+            projectionName = '-'.join([datasetName,datasetName2])
             with open(path+'scripts/gui/plotting/projectionName.pkl','wb') as f:
-                pickle.dump('-'.join([datasetName,datasetName2]),f)
+                pickle.dump(projectionName,f)
             df_WT_proj = set_standard_order(df_WT_proj.copy().reset_index(),returnSortedLevelValues=False)
             df_WT_proj = pd.DataFrame(df_WT_proj.iloc[:,-2:].values,index=pd.MultiIndex.from_frame(df_WT_proj.iloc[:,:-2]),columns=['Node 1','Node 2'])
+            with open(path+'output/projected-dataframes/projection-'+projectionName+'.pkl','wb') as f:
+                pickle.dump(df_WT_proj,f)
             if(latentSpaceBool):
                 proj_df = df_WT_proj.iloc[::5,:]
                 master.switch_frame(nextSwitchPage,proj_df,TrainingDatasetSelectionPage)
@@ -199,7 +227,9 @@ def import_WT_output():
             "IFNgPulseConcentration":"None",
             "TCellType": "OT1",
             "TLR_Agonist":"None",
-            "TumorCellNumber":"0k"
+            "TumorCellNumber":"0k",
+            "DrugAdditionTime":24,
+            "Drug":"Null"
             }
 
     for file in os.listdir(folder):
@@ -252,11 +282,12 @@ def import_mutant_output(mutant):
                 "Tumor": ["APC","APCType","IFNgPulseConcentration"],
                 "Activation": ["ActivationType"],
                 "TCellNumber": [],
-                "Macrophages": ["TLR_Agonist"],
+                "Macrophages": ["TLR_Agonist","APCType"],
                 "CAR":["CAR_Antigen","Genotype","CARConstruct"],
                 "TCellType":["TCellType"],
                 "CD25Mutant": ["Genotype"],
                 "ITAMDeficient":["Genotype"],
+                "NewPeptide":[]
             }
     
     essential_levels=["TCellNumber","Peptide","Concentration","Time"]
@@ -287,43 +318,3 @@ def import_mutant_output(mutant):
             df_full=pd.concat([df_full,df],levels=["Data"]+mutant_levels[mutant]+essential_levels)
 
     return df_full
-
-def plot_parameters(mutant):
-    """Find the index level name associated to the provided mutant by returning the value associated to the key mutant in mutant_dict
-        Args:
-                mutant (str): string contains mutant
-        Returns:
-                level_name (str): the index level name of interest associated to the given mutant
-    """
-
-    level_dict={"20": "Data",
-            "21": "TCellNumber",
-            "22": "TCellNumber",
-            "23": "TCellNumber",
-            "Antagonism":"AntagonistToAgonistRatio",
-            "CD25Mutant": "Genotype",
-            "ITAMDeficient": "Genotype",
-            "NaiveVsExpandedTCells": "ActivationType",
-            "P14": "TCellType",
-            "F5": "TCellType",
-            "P14,F5": "TCellType",
-            "TCellNumber": "TCellNumber",
-            "Tumor": "APC Type",
-            "WT": "Data"}
-
-    peptides = ["N4","Q4","T4","V4","G4","E1"]#,"Y3","A2","A8","Q7"]
-    concentrations=["1uM","100nM","10nM","1nM"]
-
-    if mutant in ["20","23"]:
-        peptides+=["A2","Y3"]#,"Q7","A8"]
-    if mutant == "P14":
-        peptides+=["A3V","AV","C4Y","G4Y","L6F","S4Y","gp33WT","mDBM"]
-    if mutant == "F5":
-        peptides+=["GAG","NP34","NP68"]
-    if mutant == "P14,F5":
-        peptides+=["A3V","AV","C4Y","G4Y","L6F","S4Y","gp33WT","mDBM","GAG","NP34","NP68"]
-    if mutant == "Tumor":
-        peptides = ["N4", "Q4", "T4", "Y3"]
-        concentrations = ["1nM IFNg","1uM","100nM","1nM"]#,"100pM IFNg","10pM IFNg","1nM IFNg","500fM IFNg","250fM IFNg","125fM IFNg","0 IFNg"]
-
-    return (level_dict[mutant],peptides,concentrations)

@@ -24,7 +24,7 @@ sys.path.insert(0, 'scripts/gui/plotting')
 from plottingGUI import selectLevelsPage
 
 def fileStructureCheck():
-    for folder,subfolders in zip(['data','output','figures'],[['LOD','current','final','old','processed'],['parameter-dataframes','parameter-space-dataframes','trained-networks'],['latent-spaces','parameterized-spaces','splines']]):
+    for folder,subfolders in zip(['data','output','figures'],[['LOD','current','final','old','processed'],['parameter-dataframes','parameter-space-dataframes','trained-networks','projected-dataframes'],['latent-spaces','parameterized-spaces','splines']]):
         if folder not in os.listdir():
             subprocess.run(['mkdir',folder])
         for subfolder in subfolders:

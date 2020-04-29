@@ -56,9 +56,30 @@ class InputDatasetSelectionPage(tk.Frame):
         e2 = tk.Entry(timeWindow)
         e2.grid(row=0,column=1)
         e2.insert(0, '1-72')
+        
+        """BEGIN TEMP SCROLLBAR CODE"""
+        labelWindow1 = tk.Frame(self)
+        labelWindow1.pack(side=tk.TOP,padx=10,fill=tk.X,expand=True) 
+        
+        #Make canvas
+        w1 = tk.Canvas(labelWindow1, width=1500, height=600,background="white", scrollregion=(0,0,3000,1200))
 
-        labelWindow = tk.Frame(self)
-        labelWindow.pack(side=tk.TOP,padx=10,fill=tk.X,expand=True) 
+        #Make scrollbar
+        scr_v1 = tk.Scrollbar(labelWindow1,orient=tk.VERTICAL)
+        scr_v1.pack(side=tk.RIGHT,fill=tk.Y)
+        scr_v1.config(command=w1.yview)
+        #Add scrollbar to canvas
+        w1.config(yscrollcommand=scr_v1.set)
+        w1.pack(fill=tk.BOTH,expand=True)
+
+        #Make and add frame for widgets inside of canvas
+        #canvas_frame = tk.Frame(w1)
+        labelWindow = tk.Frame(w1)
+        labelWindow.pack() 
+        w1.create_window((0,0),window=labelWindow, anchor = tk.NW)
+        """END TEMP SCROLLBAR CODE"""
+        #labelWindow = tk.Frame(self)
+        #labelWindow.pack(side=tk.TOP,padx=10,fill=tk.X,expand=True) 
         
         l1 = tk.Label(labelWindow, text='Parameters:',pady=10, font='Helvetica 18 bold').grid(row=0,column = 0,columnspan=len(trueLabelDict)*6)
         levelValueCheckButtonList = []
@@ -176,7 +197,9 @@ def import_WT_output():
             "IFNgPulseConcentration":"None",
             "TCellType": "OT1",
             "TLR_Agonist":"None",
-            "TumorCellNumber":"0k"
+            "TumorCellNumber":"0k",
+            "DrugAdditionTime":36,
+            "Drug":"Null"
             }
 
     for file in os.listdir(folder):

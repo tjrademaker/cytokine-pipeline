@@ -50,19 +50,26 @@ def fit_vt_vm(node1, node2, tol_r2=0.99):
         Returns:
             n_points (int): number of points to start fit with
         """
+
         if ((len(np.unique(node1[-n_points:])) == 1) and (len(np.unique(node2[-n_points:])) == 1)):
-            return check_uniqueness(n_points+1)
+            if len(node1) < n_points:
+                return n_points
+            else:
+                return check_uniqueness(n_points+1)
+
         else:
             return n_points
 
-    n_points = check_uniqueness()
+    n_points = check_uniqueness(4)
+    if len(node1) < n_points:
+        return np.nan
     r2 = 1
     
     while (r2 > tol_r2) and (n_points < len(node1)):
         slope,_,r2,_,_ = linregress(node1[-n_points:], node2[-n_points:])
         n_points += 1
-
-    if ((n_points > 5) and (slope > 1)):
+        
+    if ((n_points >= 5) and (np.abs(slope) > 1)):
         return slope
     else:
         return np.nan
@@ -97,7 +104,7 @@ def compute_vt_vm(df,slope_type="median"):
         raise NotImplementedError("%s measure is not yet implemented"%slope_type)
 
 
-def ballistic_v0(times, v0, t0, theta, vt):
+def ballistic_v0(times, v0, t0, theta, vt, fit = True):
     """Piecewise ballisfic function that computes node 1 and node 2 from given parameters.
     Phase 1 is constant velocity regime.
 
@@ -105,7 +112,7 @@ def ballistic_v0(times, v0, t0, theta, vt):
         times (1darray): timepoints at which to compute the ballistic trajectories. Vector is doubled to accommodate fitting procedure
         v0 (float): constant speed
         t0 (float): time until phase 1
-        theta (float): angle of constant speed
+        theta (float): angle of constant speed (radians)
         vt (float): terminal velocity
 
     Returns: 
@@ -113,15 +120,17 @@ def ballistic_v0(times, v0, t0, theta, vt):
 
     """
 
-    # Only keep unique values in times vector (which has double entries)
+    # Only keep unique values in times vector (which has double entries) and remove "times" for regularization at 0
     times=np.unique(times)
+    times=times[times>0]
     
     # Initialize some variables
+    vm = vt / vt_vm_ratio
+    
     x = np.zeros(times.shape)
     y = np.zeros(times.shape)
-    vx = v0 * np.cos(theta * 2 * np.pi / 360)
-    vy = v0 * np.sin(theta * 2 * np.pi / 360)
-    vm = vt / vt_vm_ratio
+    vx = v0 * np.cos(theta-np.pi/2)
+    vy = v0 * np.sin(theta-np.pi/2)
     
     # Phase 1
     prop = (times <= t0)
@@ -134,13 +143,15 @@ def ballistic_v0(times, v0, t0, theta, vt):
     
     x[~prop] = (vx + vm) * (1-np.exp(-2*delta_t))/2 - vm * delta_t + r0[0]
     y[~prop] = (vy + vt) * (1-np.exp(-2*delta_t))/2 - vt * delta_t + r0[1]
-
-    curves = np.array([x, y]).flatten()
     
-    return curves
+    if fit:
+        curves = np.array([list(x)+[0,0,0,0], list(y)+list(np.sqrt(np.abs([v0,t0,theta,vt])))]).flatten()
+        return curves
+    else:
+        return np.array([x,y]).flatten()
 
 
-def ballistic_F(times, F,  t0, theta, vt):
+def ballistic_F(times, F,  t0, theta, vt, fit=True):
 
     """Piecewise ballisfic function that computes node 1 and node 2 from given parameters.
     Phase 1 is constant force regime.
@@ -163,16 +174,17 @@ def ballistic_F(times, F,  t0, theta, vt):
     def phase1_velocity(F,t):
         return F * (1 - np.exp(-t))
     
-    # Only keep unique values in times vector (which has double entries)
+    # Only keep unique values in the times vector (which has double entries) and remove "times" for regularization at 0
     times=np.unique(times)
+    times=times[times>0]
     
     # Initialize some variables
     vm = vt / vt_vm_ratio
     
     x = np.zeros(times.shape)
     y = np.zeros(times.shape)
-    Fx = F * np.cos(theta * 2 * np.pi / 360) - vm
-    Fy = F * np.sin(theta * 2 * np.pi / 360) - vt
+    Fx = F * np.cos(theta-np.pi/2)# - vm
+    Fy = F * np.sin(theta-np.pi/2)# - vt
     
     # Phase 1
     prop = (times <= t0)
@@ -188,8 +200,13 @@ def ballistic_F(times, F,  t0, theta, vt):
     
     x[~prop] = (v0[0] + vm) * (1-np.exp(-delta_t)) - vm * delta_t + r0[0]
     y[~prop] = (v0[1] + vt) * (1-np.exp(-delta_t)) - vt * delta_t + r0[1]
-    WeightMatrixSelectionPage
-    return np.array([x, y]).flatten()
+    
+    if fit:
+        curves = np.array([list(x)+[0,0,0,0], list(y)+list(np.sqrt(np.abs([F,t0,theta,vt])))]).flatten()
+        return curves
+    else:
+        return np.array([x,y]).flatten()
+
 
 # Find the best fit for each time course in the DataFrame. 
 def return_fit_params(df,func,bounds,p0,param_labels,time_scale=20):
@@ -198,17 +215,23 @@ def return_fit_params(df,func,bounds,p0,param_labels,time_scale=20):
     cols = param_labels+var_param_labels 
     
     df_params = pd.DataFrame([], index=df.index.droplevel("Time").unique(), columns=cols)
-    times=np.tile(df.index.get_level_values("Time").astype("int")/time_scale,[2])    
-    
+    xdata = df.iloc[:,0].index.get_level_values("Time").astype("float")/time_scale
+    xdata=np.tile(list(xdata)+[0,0,0,0],[2])
+
     # Fit each curve, then return the parameters
     for idx in df_params.index:
+
+        x,y=df.loc[idx,:].values.T
+        ydata = np.array([list(x)+[0,0,0,0],list(y)+[0,0,0,0]]).flatten()
+
         # Each row contains one node, each column is one time point. Required by curve_fit
-        popt, pcov = curve_fit(func, xdata=times, ydata=df.loc[idx,:].values.T.flatten(), p0=p0, bounds= bounds)
+        popt, pcov = curve_fit(func, xdata=xdata, ydata=ydata, absolute_sigma=True, p0=p0, bounds= bounds)
 
         df_params.loc[idx, param_labels] = popt
         df_params.loc[idx, var_param_labels] = np.diag(pcov)
     
     return df_params
+
 
 def combine_spline_df_with_fit(df,df_fit):
     """Combine splines and parameterized curves
@@ -243,6 +266,7 @@ def combine_spline_df_with_fit(df,df_fit):
     
     return df_compare
 
+
 def return_param_and_fitted_latentspace_dfs(df,fittingFunctionName):
     """Returns parameterized dataframes to put into plotting GUI
     Args:
@@ -255,9 +279,9 @@ def return_param_and_fitted_latentspace_dfs(df,fittingFunctionName):
     time_scale=20
 
     func_dict = {'Constant velocity':ballistic_v0, 'Constant force': ballistic_F}
-    bounds_dict = {'Constant velocity':[(0, 0, -135, 0), (4, 5, 90, 5)],
-                   'Constant force': [(0, 0, -135, 0), (4, 5, 90, 5)]}
-    p0_dict = {'Constant velocity':[2, 0, 0, 1],'Constant force':[2, 0, 0, 1]}
+    bounds_dict = {'Constant velocity':[(0, 0, 0, 0), (5, 5, np.pi, 5)],
+                   'Constant force': [(0, 0, 0, 0), (5, 5, np.pi, 5)]}
+    p0_dict = {'Constant velocity':[1, 1, 1, 1],'Constant force':[1, 1, 1, 1]}
     param_labels_dict = {'Constant velocity':["v0", "t0", "theta", "vt"],
                          'Constant force':["F", "t0", "theta", "vt"]}
     
@@ -281,7 +305,7 @@ def return_param_and_fitted_latentspace_dfs(df,fittingFunctionName):
         for idx in dataset_df_params.index:
             fittingVars = dataset_df_params.loc[idx,param_labels]
             times = dataset_df_fit.loc[idx,:].index.get_level_values("Time").astype("float")/time_scale
-            dataset_df_fit.loc[idx,:] = func(times, *fittingVars).reshape(2,-1).T
+            dataset_df_fit.loc[idx,:] = func(times, *fittingVars,fit=False).reshape(2,-1).T
         
         datasetParamList.append(dataset_df_params)
         datasetFitList.append(dataset_df_fit)
@@ -293,6 +317,8 @@ def return_param_and_fitted_latentspace_dfs(df,fittingFunctionName):
     df_compare = combine_spline_df_with_fit(df,df_fit)
     
     return df_params,df_compare
+
+
 
 class FittingFunctionSelectionPage(tk.Frame):
     def __init__(self, master,df,bp):

@@ -60,6 +60,7 @@ filename_changes={
                                         "TCellTypeComparison_OT1,P14,F5_Timeseries_3": "TCellTypeComparison_OT1,P14_Timeseries_3",
                                         "NaiveVsExpandedTCells_OT1_Timeseries_1": "Activation_Timeseries_1",
                                         "CD4_5CC7_2":"TCellType_OT1_5CC7_Timeseries_2",
+                                        "PeptideComparison_OT1_Timeseries_20":"NewPeptideComparison_OT1_Timeseries_20"
                                         }
 
 level_name_changes={

@@ -6,9 +6,7 @@ import numpy as np
 import pickle,sys,os
 from itertools import groupby
 from matplotlib.widgets import RadioButtons,Button,CheckButtons,TextBox
-print(os.getcwd())
 sys.path.insert(0, '../../programs/dataProcessing/')
-print(os.getcwd())
 from miscFunctions import reindexDataFrame
 from matplotlib import colors,ticker
     
@@ -17,21 +15,28 @@ def plot(plottingDf,subsettedDf,kwargs,facetKwargs,auxillaryKwargs,plotOptions):
     if 'Time' in plottingDf.columns:
         if len(pd.unique(plottingDf.Time)) > 36:
             if kwargs['x'] == 'Time' or kwargs['y'] == 'Time':
+                print('wat1')
                 fg = sns.relplot(data=plottingDf,kind=auxillaryKwargs['subPlotType'],facet_kws=facetKwargs,ci=False,**kwargs,**plotOptions['X']['figureDimensions'])
             else:
+                print('wat2')
                 fg = sns.relplot(data=plottingDf,kind=auxillaryKwargs['subPlotType'],facet_kws=facetKwargs,ci=False,**kwargs,**plotOptions['X']['figureDimensions'],sort=False,mew=0,ms=4)
         else:
             if 'style' not in kwargs.keys():
+                print('wat3')
                 fg = sns.relplot(data=plottingDf,marker='o',kind=auxillaryKwargs['subPlotType'],facet_kws=facetKwargs,ci=False,**kwargs,**plotOptions['X']['figureDimensions'],sort=False,mew=0,ms=4)
             else:
+                print('wat4')
                 fg = sns.relplot(data=plottingDf,markers=True,kind=auxillaryKwargs['subPlotType'],facet_kws=facetKwargs,ci=False,**kwargs,**plotOptions['X']['figureDimensions'],sort=False,mew=0,ms=4)
     else:
         if 'style' not in kwargs.keys() and auxillaryKwargs['subPlotType'] == 'line':
+            print('wat5')
             fg = sns.relplot(data=plottingDf,marker='o',kind=auxillaryKwargs['subPlotType'],facet_kws=facetKwargs,ci=False,**kwargs,**plotOptions['X']['figureDimensions'],sort=False,mew=0,ms=4)
         else:
             if auxillaryKwargs['subPlotType']=='line':
+                print('wat6')
                 fg = sns.relplot(data=plottingDf,markers=True,kind=auxillaryKwargs['subPlotType'],facet_kws=facetKwargs,ci=False,**kwargs,**plotOptions['X']['figureDimensions'],sort=False,mew=0,ms=4)
             else:
+                print('wat7')
                 fg = sns.relplot(data=plottingDf,kind=auxillaryKwargs['subPlotType'],facet_kws=facetKwargs,**kwargs,**plotOptions['X']['figureDimensions'])
     #X and Y Axis Scaling for 2D plots
     for axis in plotOptions:

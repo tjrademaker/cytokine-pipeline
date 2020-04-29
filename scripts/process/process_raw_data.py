@@ -369,8 +369,32 @@ class SplineDatasetSelectionPage(tk.Frame):
         sortedFileNameDict = set_standard_order(pd.DataFrame({'Data':list(fileNameDict.keys())}),returnSortedLevelValues=True)
         trueLabelDict = {'Select dataset':sortedFileNameDict['Data']}
 
-        labelWindow = tk.Frame(self)
-        labelWindow.pack(side=tk.TOP,padx=10,fill=tk.X,expand=True) 
+        labelWindow1 = tk.Frame(self)
+        labelWindow1.pack(side=tk.TOP,padx=10,fill=tk.X,expand=True) 
+        
+        """BEGIN TEMP SCROLLBAR CODE"""
+        labelWindow1 = tk.Frame(self)
+        labelWindow1.pack(side=tk.TOP,padx=10,fill=tk.X,expand=True) 
+        
+        #Make canvas
+        w1 = tk.Canvas(labelWindow1, width=600, height=600,background="white", scrollregion=(0,0,3000,1200))
+
+        #Make scrollbar
+        scr_v1 = tk.Scrollbar(labelWindow1,orient=tk.VERTICAL)
+        scr_v1.pack(side=tk.RIGHT,fill=tk.Y)
+        scr_v1.config(command=w1.yview)
+        #Add scrollbar to canvas
+        w1.config(yscrollcommand=scr_v1.set)
+        w1.pack(fill=tk.BOTH,expand=True)
+
+        #Make and add frame for widgets inside of canvas
+        #canvas_frame = tk.Frame(w1)
+        labelWindow = tk.Frame(w1)
+        labelWindow.pack() 
+        w1.create_window((0,0),window=labelWindow, anchor = tk.NW)
+        """END TEMP SCROLLBAR CODE"""
+        #labelWindow = tk.Frame(self)
+        #labelWindow.pack(side=tk.TOP,padx=10,fill=tk.X,expand=True) 
         
         levelValueCheckButtonList = []
         overallCheckButtonVariableList = []
@@ -455,6 +479,7 @@ class SplineDatasetSelectionPage(tk.Frame):
 
         buttonWindow = tk.Frame(self)
         buttonWindow.pack(side=tk.TOP,pady=10)
+        
         tk.Button(buttonWindow, text="OK",command=lambda: collectInputs()).pack(in_=buttonWindow,side=tk.LEFT)
         tk.Button(buttonWindow, text="Back",command=lambda: master.switch_frame(master.homepage)).pack(in_=buttonWindow,side=tk.LEFT)
         tk.Button(buttonWindow, text="Quit",command=lambda: quit()).pack(in_=buttonWindow,side=tk.LEFT)
