@@ -1,3 +1,10 @@
-figures/*
-plots/*
-data/*
+*.DS_Store
+*__pycache__/*
+data/processed/*.hdf
+figures/*/*.pdf
+figures/*/*.png
+output/parameter-dataframes/*.pkl
+output/parameter-space-dataframes/*.pkl
+output/projected_dataframes/*.pkl
+output/temp/*.pkl
+output/trained-networks/*.pkl
