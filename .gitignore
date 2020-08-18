@@ -8,3 +8,4 @@ output/parameter-space-dataframes/*.pkl
 output/projected_dataframes/*.pkl
 output/temp/*.pkl
 output/trained-networks/*.pkl
+data/*/*.pkl
