@@ -454,11 +454,12 @@ def return_param_and_fitted_latentspace_dfs(df, fittingFunctionName, reg_rate=1.
 
     return df_params, df_compare, df_hess
 
-# TODO: I am here in the reformatting of parameterization.
-# All seems to work with pre-existing models, after fixing a few latent bugs. 
-## TODO: bind the Sigmoid model to the GUI as well (plot parameters, etc.)
+### CODE FOR THE GUI
+# TODO: bind the Sigmoid model to the GUI as well:
+#   - Regularization rate as an option when selecting the model to fit (change collectInputs)
+#   - Option to plot the FIM eigenvectors and eigenvalues (add an option in the class PlottingDataframe...)
 class FittingFunctionSelectionPage(tk.Frame):
-    def __init__(self, master,df,bp):
+    def __init__(self, master, df, bp):
         tk.Frame.__init__(self, master)
         global backPage
         global dfToParameterize
@@ -467,24 +468,98 @@ class FittingFunctionSelectionPage(tk.Frame):
 
         mainWindow = tk.Frame(self)
         l1 = tk.Label(mainWindow, text="Select function to fit latent space with:",
-            font='Helvetica 18 bold').grid(row=0,column=0,sticky=tk.W)
-        mainWindow.pack(side=tk.TOP,padx=10,pady=10)
+            font='Helvetica 18 bold')
+        l1.grid(row=0, column=0, sticky=tk.W)
+        mainWindow.pack(side=tk.TOP, padx=10, pady=10)
 
-        functionList = ['Constant velocity','Constant force', 'Sigmoid']
+        functionList = ['Constant velocity', 'Constant force', 'Sigmoid']
         functionVar = tk.StringVar(value=functionList[0])
         rblist = []
-        for i,function in enumerate(functionList):
-            rb = tk.Radiobutton(mainWindow, text=function,padx = 20,
-                variable=functionVar,value=function)
-            rb.grid(row=i+1,column=0,sticky=tk.W)
+        for i, function in enumerate(functionList):
+            rb = tk.Radiobutton(mainWindow, text=function, padx=20,
+                variable=functionVar, value=function)
+            rb.grid(row=i+1, column=0, sticky=tk.W)
             rblist.append(rb)
 
+        # Regularization rate as an input. Entry box.
+        regrate_memory = tk.StringVar(value="1.")  # Default value, can be converted to float
+        l2 = tk.Label(mainWindow,
+            text="Enter a regularization rate (positive float):",
+            font="Helvetica 18 bold")
+        l2.grid(row=len(functionList)+1, column=0, sticky=tk.W)
+
+        # Add a label explaining how to remove focus to validate the value
+        l3Var = tk.StringVar(value="Enter a non-negative float")
+        l3 = tk.Label(mainWindow, textvariable=l3Var,
+            font="Helvetica 12").grid(row=len(functionList)+3,
+                column=0, sticky=tk.W)
+
+        # Float input validation
+        def validate_float(st):
+            try: f = float(st)
+            except ValueError:
+                check = False
+            else:
+                if f >= 0.:
+                    check = True
+                else:
+                    check = False
+            return check
+
+        # Main validation and correction function
+        # Always return True, because we manually revert the change if needed.
+        def validate_main(reason, former, proposed):
+            # Save the current variable before the user edits
+            if reason == "focusin":
+                regrate_memory.set(former)
+                l3Var.set("Press TAB to validate")
+            # Check the proposed string after user edits, rollback if needed
+            elif reason == "focusout":
+                l3Var.set("Enter a non-negative float")
+                if validate_float(proposed):
+                    regrate_memory.set(proposed)
+                    print("Regularization rate chosen:", proposed)
+                else:
+                    # Put back the value prior to the user focusin on the box
+                    # Won't be called before regrateEntry is created, so no bug
+                    regrateEntry.delete(0, tk.END)
+                    regrateEntry.insert(0, regrate_memory.get())
+            else:
+                pass
+            return True
+
+        # And registered commands
+        fake_widget = tk.Entry()
+        validate_cmd = (fake_widget.register(validate_main), "%V", "%s", "%P")
+        # Is this necessary since no substitution codes?
+
+        # Now create the Entry with its validation commands
+        regrateEntry = tk.Entry(mainWindow, bg="white",
+            exportselection=0,
+            width=6, # allow 0. to 1., 1.2e-5, etc.
+            validate="focus", # Validate after the user has finished typing
+            validatecommand=validate_cmd)
+            # To validate, output the proposed new text to the validate_float function)
+        regrateEntry.grid(row=len(functionList)+2, column=0, sticky=tk.W)
+        regrateEntry.insert(0, regrate_memory.get())
+
         def collectInputs():
+            # Get the inputs, function to fit and regularization rate
             functionName = functionVar.get()
-            global df_params_plot,df_compare_plot
+            try:
+                regrate = float(regrateEntry.get())
+            except ValueError:
+                regrate = -1  # To enter the condition below
+            if regrate < 0.:
+                print("The last inputted regularization rate was invalid; ")
+                print("Reverting to the last validated rate. ")
+                regrate = float(regrate_memory.get())
+            print("Regularization rate chosen:", regrate)
+
+            global df_params_plot, df_compare_plot
             # This is the only place where return_param_... is used.
             df_params_plot, df_compare_plot, df_hess_plot = \
-                return_param_and_fitted_latentspace_dfs(dfToParameterize, functionName)
+                return_param_and_fitted_latentspace_dfs(dfToParameterize, functionName, reg_rate=regrate)
             # TODO: use df_hess_plot for a Fisher info. analysis of the fit.
 
             df_params_columns = list(df_params_plot.columns)

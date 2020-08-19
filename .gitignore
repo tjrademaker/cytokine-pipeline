@@ -10,3 +10,4 @@ output/projected-dataframes/*.pkl
 output/temp/*.pkl
 output/trained-networks/*.pkl
 output/*.pkl
+scripts/gui/plotting/*.pkl
