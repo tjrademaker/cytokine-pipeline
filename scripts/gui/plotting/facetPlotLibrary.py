@@ -5,17 +5,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys,os,json,pickle,math,itertools
 from scipy import stats
-from facetPlot3D import draw_faceted_heatmap,returnHeatmapAspectRatios
-from miscFunctions import sortSINumerically,reindexDataFrame
 import subprocess
 from matplotlib.colors import LogNorm,SymLogNorm
-sys.path.insert(0, '../dataProcessing/')
+sys.path.insert(0, 'scripts/gui/plotting/')
+from miscFunctions import sortSINumerically,reindexDataFrame
 from miscFunctions import returnGates,returnTicks
 from operator import itemgetter
 import facetPlot1D as fp1D
 import facetPlotCategorical as fpCategorical
 import facetPlot2D as fp2D
 import facetPlot3D as fp3D
+from facetPlot3D import draw_faceted_heatmap,returnHeatmapAspectRatios
 
 idx = pd.IndexSlice
 splitPath = os.getcwd().split('/')
@@ -81,10 +81,10 @@ def produceSubsettedDataFrames(fulldf,withinFigureBoolean,specificValueBooleanLi
                     currentLevelValues = tuple([currentLevelValues])
                 rowList.append(currentLevelValues)
             actualSubsettingCombos = []
-            #From original dataframe; select all rows that appear in the all possible combination list 
+            #From original dataframe; select all rows that appear in the all possible combination list
             for subsettingCombo in allPossibleSubsettingCombos:
                 if subsettingCombo in rowList:
-                    actualSubsettingCombos.append(subsettingCombo) 
+                    actualSubsettingCombos.append(subsettingCombo)
         else:
             rowList = []
             nonEventLevelList = []
@@ -100,10 +100,10 @@ def produceSubsettedDataFrames(fulldf,withinFigureBoolean,specificValueBooleanLi
                     currentLevelValues = tuple([currentLevelValues])
                 rowList.append(currentLevelValues)
             actualSubsettingCombos = []
-            #From original dataframe; select all rows that appear in the all possible combination list 
+            #From original dataframe; select all rows that appear in the all possible combination list
             for subsettingCombo in allPossibleSubsettingCombos:
                 if subsettingCombo in rowList:
-                    actualSubsettingCombos.append(subsettingCombo) 
+                    actualSubsettingCombos.append(subsettingCombo)
             #actualSubsettingCombos = allPossibleSubsettingCombos
         #Use these levels to cross section the fulldf, generating a list of subsetted dfs that will each have their own figure
         allPossibleSubsettedDfList = []
@@ -123,7 +123,7 @@ def produceSubsettedDataFrames(fulldf,withinFigureBoolean,specificValueBooleanLi
                 allCurrentLevelValues = possibleSubsettedDf.iloc[row,:].name
                 rowList.append(allCurrentLevelValues)
             actualLevelValueCombos = []
-            #From original dataframe; select all rows that appear in the all possible level value combination list 
+            #From original dataframe; select all rows that appear in the all possible level value combination list
             levelValueRowList = []
             for levelValueCombo in allPossibleLevelValueCombos:
                 if levelValueCombo in rowList:
@@ -173,7 +173,7 @@ def produceSubsettedDataFrames(fulldf,withinFigureBoolean,specificValueBooleanLi
 def createFacetPlotName(folderName,dataType,plotType,subPlotType,legendParameterToLevelNameDict,subsettedDfTitle,levelsPlottedIndividually,useModifiedDf,plotOptions):
     delimiter1 = '-'
     delimiter2 = ','
-    
+
     legendParameterString = delimiter2.join(list(legendParameterToLevelNameDict.keys()))
 
     flattened_list = []
@@ -263,7 +263,7 @@ def plotFacetedFigures(folderName,plotType,subPlotType,dataType,subsettedDfList,
                 subsettedDf = subsettedDf[(np.abs(stats.zscore(subsettedDf)) < outlierZScore).all(axis=1)]
             afterOutlierRemoval = subsettedDf.shape[0]
             print(str(beforeOutlierRemoval-afterOutlierRemoval)+' outliers removed!')
-            
+
         #Assign all levels to plot parameters in catplot/relplot; reassign x/y axis level names to desired x/y axis titles
         kwargs = {}
         facetgridkwargs = {}
@@ -294,7 +294,7 @@ def plotFacetedFigures(folderName,plotType,subPlotType,dataType,subsettedDfList,
                 unorderedLevelValues = list(pd.unique(subsettedDf.index.get_level_values(currentLevel)))
                 if 'Concentration' in currentLevel and 'M' in unorderedLevelValues[0]:
                     levelValues = sortSINumerically(unorderedLevelValues,True,True)[0]
-                    kwargs['col_order'] = levelValues 
+                    kwargs['col_order'] = levelValues
                 else:
                     if len(originalLevelValueOrders) != 0 and currentLevel in originalLevelValueOrders.keys():
                         kwargs['col_order'] = subsetOriginalLevelValueOrders(originalLevelValueOrders[kwargs['col']],subsettedDf,kwargs['col'])
@@ -307,13 +307,13 @@ def plotFacetedFigures(folderName,plotType,subPlotType,dataType,subsettedDfList,
                 unorderedLevelValues = list(pd.unique(subsettedDf.index.get_level_values(currentLevel)))
                 if 'Concentration' in currentLevel and 'M' in unorderedLevelValues[0]:
                     levelValues = sortSINumerically(unorderedLevelValues,True,True)[0]
-                    kwargs['row_order'] = levelValues 
+                    kwargs['row_order'] = levelValues
                 else:
                     levelValues = unorderedLevelValues
                     if len(originalLevelValueOrders) != 0 and currentLevel in originalLevelValueOrders.keys():
                         kwargs['row_order'] = subsetOriginalLevelValueOrders(originalLevelValueOrders[kwargs['row']],subsettedDf,kwargs['row'])
                     else:
-                        kwargs['row_order'] = unorderedLevelValues 
+                        kwargs['row_order'] = unorderedLevelValues
                 facetgridkwargs['row'] = kwargs['row']
                 facetgridkwargs['row_order'] = kwargs['row_order']
             elif parameter == 'X Axis Values':
@@ -349,7 +349,7 @@ def plotFacetedFigures(folderName,plotType,subPlotType,dataType,subsettedDfList,
                     kwargs['z'] = plotOptions['Colorbar']['axisTitle']
         #else:
         #pass
-        
+
         if dataType == 'singlecell':
             plottingDf = subsettedDf.copy()
             #plottingDf = subsettedDf.stack().to_frame('GFI')
@@ -384,7 +384,7 @@ def plotFacetedFigures(folderName,plotType,subPlotType,dataType,subsettedDfList,
             if 'col' in facetgridkwargs.keys():
                 colwrap = min([len(kwargs['col_order']),col_wrap_min])
                 kwargs['col_wrap'] = colwrap
-        
+
         #HACK; NEED TO THINK OF BETTER WAY TO DO THIS:
         filePlottingFolderName = pickle.load(open(path+'scripts/gui/plotting/plottingFolderName.pkl','rb'))
         global plotFolderName
@@ -470,11 +470,11 @@ def plotSubsettedFigure(subsettedDf,plottingDf,kwargs,facetgridkwargs,plotSpecif
 
     titleBool = True
     secondPathBool = False
-    
+
     #Sanitize plottingDf to have every level value be unique across levels
     if subPlotType != 'heatmap':
         plottingDf,kwargs = sanitizeSameValueLevels(plottingDf,kwargs)
-    
+
     #Add in sharex/sharey options
     if plotType != '1d':
         print(plotOptions['X']['share'])
@@ -482,9 +482,9 @@ def plotSubsettedFigure(subsettedDf,plottingDf,kwargs,facetgridkwargs,plotSpecif
         facetKwargs = {'sharex':plotOptions['X']['share'],'sharey':plotOptions['Y']['share']}
     else:
         facetKwargs = {'sharex':False,'sharey':plotOptions['Y']['share']}
-    
+
     if alternateTitle !=  '':
-        fullTitleString = alternateTitle 
+        fullTitleString = alternateTitle
 
     auxillaryKwargs = {}
     auxillaryKwargs['plotType'] = plotType
@@ -550,7 +550,7 @@ def plotSubsettedFigure(subsettedDf,plottingDf,kwargs,facetgridkwargs,plotSpecif
         if 'NotApplicable' in subsettedDfTitle:
             subsettedDfTitle.remove('NotApplicable')
         plt.suptitle('-'.join(subsettedDfTitle),fontsize = 'x-large',fontweight='bold')
-    
+
     #Legend
     if legendVar == 'no':
         fg._legend.remove()

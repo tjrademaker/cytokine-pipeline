@@ -22,10 +22,9 @@ if sys_pf == 'darwin':
 	matplotlib.use("TkAgg")
 import tkinter as tk
 from tkinter import ttk
-from adapt_dataframes import set_standard_order
-sys.path.insert(0, 'scripts/gui/plotting')
-from plottingGUI import createLabelDict,checkUncheckAllButton,selectLevelsPage 
-from adapt_dataframes import set_standard_order
+from scripts.process.adapt_dataframes import set_standard_order
+from scripts.gui.plotting.plottingGUI import createLabelDict, checkUncheckAllButton, selectLevelsPage 
+from scripts.process.adapt_dataframes import set_standard_order
 
 import numpy as np
 import scipy
@@ -70,7 +69,7 @@ def moving_average(points, kernelsize):
 
     # Normalize the middle points
     smoothed[w:end - w] = smoothed[w:end - w] / kernelsize
-    
+
     return smoothed
 
 
@@ -196,7 +195,7 @@ def lod_import(date):
         return lower_bounds
 
 def treat_missing_data(df):
-    """ Function to remove randomly or structurally missing datapoints, search for suspicious entries (zeros in all cytokines after having been nonzero). 
+    """ Function to remove randomly or structurally missing datapoints, search for suspicious entries (zeros in all cytokines after having been nonzero).
     If found, set to NaN, then interpolate linearly
 
     Args:
@@ -207,8 +206,8 @@ def treat_missing_data(df):
     """
     # Check for zeros (=minimum) per cytokine and time
     df_zero=(np.sum(df==df.min(),axis=1)==len(df.columns)).unstack("Time")
-    
-    # Logic: after having been nonzero cannot be zero in all cytokines at the same time 
+
+    # Logic: after having been nonzero cannot be zero in all cytokines at the same time
     remove_idx_time={}
     for time in range(1,len(df_zero.columns)):
         save_idx=[]
@@ -289,8 +288,8 @@ def process_file(folder,file, **kwargs):
         take_log (bool): True to take the log of the concentrations in the
             preprocessing, False if the networks have to deal with raw values.
             Default: True.
-        rescale_max (bool): True: rescale concentrations by their maximum to 
-            account for experimental variability, False if we postpone 
+        rescale_max (bool): True: rescale concentrations by their maximum to
+            account for experimental variability, False if we postpone
             normalization to a later stage.
             Default: False.
         smooth_size (int, default=3): number of points to consider when
@@ -331,10 +330,10 @@ def process_file(folder,file, **kwargs):
 
     # Smooth the data points before fitting splines for interpolation
     data_smooth = smoothing_data(data_log, kernelsize=smooth_size)
-    
+
     # Fit cubic splines on the smoothed series
     spline_frame = generate_splines(data_log, data_smooth,rtol=rtol_splines)
-    
+
     # Extract integral, concentration and derivative features from splines at set timepoints
     df = extract_features(spline_frame,max_time=max_time)
 
@@ -349,7 +348,7 @@ def process_file(folder,file, **kwargs):
 class SplineDatasetSelectionPage(tk.Frame):
     def __init__(self, master):
         tk.Frame.__init__(self, master)
-        
+
         actionWindow = tk.Frame(self)
         actionWindow.pack(side=tk.TOP,padx=10,pady=20)
         l1 = tk.Label(actionWindow, text="Select action:", font='Helvetica 18 bold').grid(row=0,column=0,sticky=tk.W)
@@ -360,22 +359,22 @@ class SplineDatasetSelectionPage(tk.Frame):
             rb = tk.Radiobutton(actionWindow,text=action, variable=actionVar,value=action)
             rb.grid(row=i+1,column=0,sticky=tk.W)
             rblist.append(rb)
-        
-        folder = path+"data/final/" 
+
+        folder = path+"data/final/"
         fileNameDict = {}
         for fileName in os.listdir(folder):
             if fileName.endswith(".pkl"):
-                fileNameDict[fileName[41:-10]] = fileName 
+                fileNameDict[fileName[41:-10]] = fileName
         sortedFileNameDict = set_standard_order(pd.DataFrame({'Data':list(fileNameDict.keys())}),returnSortedLevelValues=True)
         trueLabelDict = {'Select dataset':sortedFileNameDict['Data']}
 
         labelWindow1 = tk.Frame(self)
-        labelWindow1.pack(side=tk.TOP,padx=10,fill=tk.X,expand=True) 
-        
+        labelWindow1.pack(side=tk.TOP,padx=10,fill=tk.X,expand=True)
+
         """BEGIN TEMP SCROLLBAR CODE"""
         labelWindow1 = tk.Frame(self)
-        labelWindow1.pack(side=tk.TOP,padx=10,fill=tk.X,expand=True) 
-        
+        labelWindow1.pack(side=tk.TOP,padx=10,fill=tk.X,expand=True)
+
         #Make canvas
         w1 = tk.Canvas(labelWindow1, width=600, height=600,background="white", scrollregion=(0,0,3000,1200))
 
@@ -390,12 +389,12 @@ class SplineDatasetSelectionPage(tk.Frame):
         #Make and add frame for widgets inside of canvas
         #canvas_frame = tk.Frame(w1)
         labelWindow = tk.Frame(w1)
-        labelWindow.pack() 
+        labelWindow.pack()
         w1.create_window((0,0),window=labelWindow, anchor = tk.NW)
         """END TEMP SCROLLBAR CODE"""
         #labelWindow = tk.Frame(self)
-        #labelWindow.pack(side=tk.TOP,padx=10,fill=tk.X,expand=True) 
-        
+        #labelWindow.pack(side=tk.TOP,padx=10,fill=tk.X,expand=True)
+
         levelValueCheckButtonList = []
         overallCheckButtonVariableList = []
         checkAllButtonList = []
@@ -417,12 +416,12 @@ class SplineDatasetSelectionPage(tk.Frame):
                 levelCheckButtonList.append(cb)
                 levelCheckButtonVariableList.append(includeLevelValueBool)
                 j+=1
-            
+
             checkAllButton1 = checkUncheckAllButton(labelWindow,levelCheckButtonList, text='Check All')
             checkAllButton1.configure(command=checkAllButton1.checkAll)
             checkAllButton1.grid(row=2,column=i*6,sticky=tk.N,columnspan=3)
             checkAllButtonList.append(checkAllButton1)
-            
+
             uncheckAllButton1 = checkUncheckAllButton(labelWindow,levelCheckButtonList, text='Uncheck All')
             uncheckAllButton1.configure(command=checkAllButton1.uncheckAll)
             uncheckAllButton1.grid(row=2,column=i*6+3,sticky=tk.N,columnspan=3)
@@ -479,7 +478,7 @@ class SplineDatasetSelectionPage(tk.Frame):
 
         buttonWindow = tk.Frame(self)
         buttonWindow.pack(side=tk.TOP,pady=10)
-        
+
         tk.Button(buttonWindow, text="OK",command=lambda: collectInputs()).pack(in_=buttonWindow,side=tk.LEFT)
         tk.Button(buttonWindow, text="Back",command=lambda: master.switch_frame(master.homepage)).pack(in_=buttonWindow,side=tk.LEFT)
         tk.Button(buttonWindow, text="Quit",command=lambda: quit()).pack(in_=buttonWindow,side=tk.LEFT)

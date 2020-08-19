@@ -7,10 +7,9 @@ if sys_pf == 'darwin':
 import tkinter as tk
 import tkinter.ttk
 import pandas as pd
-import facetPlotLibrary as fpl 
-import interactiveGUIElements as ipe 
-sys.path.insert(0, '../process')
-from adapt_dataframes import set_standard_order
+import scripts.gui.plotting.facetPlotLibrary as fpl
+import scripts.gui.plotting.interactiveGUIElements as ipe
+from scripts.process.adapt_dataframes import set_standard_order
 
 expParamDict = {'cyt':'cyt','cell':'cell','prolif':'cell','singlecell':'cell'}
 
@@ -40,7 +39,7 @@ class checkUncheckAllButton(tk.Button):
     def checkAll(self):
         for checkButton in self.checkButtonList:
             checkButton.select()
-    
+
     def uncheckAll(self):
         for checkButton in self.checkButtonList:
             checkButton.deselect()
@@ -51,7 +50,7 @@ class selectLevelsPage(tk.Frame):
         tk.Frame.__init__(self, master)
         labelWindow = tk.Frame(self)
         labelWindow.pack(side=tk.TOP,padx=10,pady=10)
-        
+
         global homePage
         global experimentDf
         homePage = hpage
@@ -61,11 +60,11 @@ class selectLevelsPage(tk.Frame):
         sortedValues = set_standard_order(experimentDf.copy().reset_index(),returnSortedLevelValues=True)
         trueLabelDict = createLabelDict(experimentDf.copy(),sortedValues=sortedValues)
         #trueLabelDict = createLabelDict(experimentDf)
-            
+
         global plotType
         global subPlotType
         global addDistributionPoints
-        addDistributionPoints = False 
+        addDistributionPoints = False
         global multipleDimensions
         if len(inputdf.columns) > 2:
             multipleDimensions = True
@@ -76,11 +75,14 @@ class selectLevelsPage(tk.Frame):
         else:
             multipleDimensions = False
             plotType,subPlotType = '2d/line'.split('/')
-        
+
         global figureLevelList,fullFigureLevelBooleanList
         fullFigureLevelBooleanList = []
         figureLevelList = []
-        
+
+        # TODO: there is a bug when some level is not selected, as if the
+        # DataFrame passed to the plotting function were ending up empty
+        # (frbourassa, 2020-aug-18)
         l1 = tk.Label(labelWindow, text="""Which levels names do you want to be included within this figure??:""").pack()
         mainWindow = tk.Frame(self)
         levelNameCheckButtons = []
@@ -92,16 +94,16 @@ class selectLevelsPage(tk.Frame):
             cb.select()
             levelNameCheckButtons.append(cb)
             checkButtonVariableList.append(includeLevelBool)
-        
+
         checkButtonWindow = tk.Frame(self)
         checkAllButton1 = checkUncheckAllButton(checkButtonWindow,levelNameCheckButtons, text='Check All')
         checkAllButton1.configure(command=checkAllButton1.checkAll)
         checkAllButton1.pack(side=tk.LEFT)
-        
+
         uncheckAllButton1 = checkUncheckAllButton(checkButtonWindow,levelNameCheckButtons, text='Uncheck All')
         uncheckAllButton1.configure(command=checkAllButton1.uncheckAll)
         uncheckAllButton1.pack(side=tk.LEFT)
-        
+
         checkButtonWindow.pack(side=tk.TOP)
         mainWindow.pack(side=tk.TOP,padx=10)
 
@@ -116,7 +118,7 @@ class selectLevelsPage(tk.Frame):
                 else:
                     fullFigureLevelBooleanList.append(False)
             master.switch_frame(selectLevelValuesPage,assignLevelsToParametersPage,trueLabelDict)
-        
+
         def quitCommand():
             exitBoolean = True
             quit()
@@ -124,6 +126,8 @@ class selectLevelsPage(tk.Frame):
         buttonWindow = tk.Frame(self)
         buttonWindow.pack(side=tk.TOP,pady=10)
         tk.Button(buttonWindow, text="OK",command=lambda: collectInputs()).pack(in_=buttonWindow,side=tk.LEFT)
+        # TODO: bug? all processed input files are read again when pressing "Back"
+        # (frbourassa, 2020-aug-18)
         tk.Button(buttonWindow, text="Back",command=lambda: master.switch_frame(homePage)).pack(in_=buttonWindow,side=tk.LEFT)
         tk.Button(buttonWindow, text="Quit",command=lambda: quitCommand()).pack(in_=buttonWindow,side=tk.LEFT)
 
@@ -132,12 +136,12 @@ class selectLevelValuesPage(tk.Frame):
     #master.switch_frame(selectLevelValuesPage,SelectDimensionsPage,trueLabelDict,DataSelectionHomePage,backpage,finalSwitchPage,folderName,secondaryhomepage,processType)
     def __init__(self, master,switchPage,trueLabelDict):
         tk.Frame.__init__(self, master)
-        
+
         includeLevelValueList = []
-        
+
         labelWindow = tk.Frame(self)
         labelWindow.pack(side=tk.TOP,padx=10,fill=tk.X,expand=True)
-        
+
         l1 = tk.Label(labelWindow, text='Which specific level values do you want to include in the figure?',pady=10).grid(row=0,column = 0,columnspan=len(trueLabelDict)*6)
         levelValueCheckButtonList = []
         overallCheckButtonVariableList = []
@@ -160,12 +164,12 @@ class selectLevelValuesPage(tk.Frame):
                 levelCheckButtonList.append(cb)
                 levelCheckButtonVariableList.append(includeLevelValueBool)
                 j+=1
-            
+
             checkAllButton1 = checkUncheckAllButton(labelWindow,levelCheckButtonList, text='Check All')
             checkAllButton1.configure(command=checkAllButton1.checkAll)
             checkAllButton1.grid(row=2,column=i*6,sticky=tk.N,columnspan=3)
             checkAllButtonList.append(checkAllButton1)
-            
+
             uncheckAllButton1 = checkUncheckAllButton(labelWindow,levelCheckButtonList, text='Uncheck All')
             uncheckAllButton1.configure(command=checkAllButton1.uncheckAll)
             uncheckAllButton1.grid(row=2,column=i*6+3,sticky=tk.N,columnspan=3)
@@ -185,29 +189,29 @@ class selectLevelValuesPage(tk.Frame):
                 includeLevelValueList.append(tempLevelValueList)
             #master.switch_frame(assignLevelsToParametersPage)
             master.switch_frame(switchPage,includeLevelValueList)
-        
+
         def quitCommand():
             exitBoolean = True
             quit()
-        
+
         buttonWindow = tk.Frame(self)
         buttonWindow.pack(side=tk.TOP,pady=10)
-        
+
         tk.Button(buttonWindow, text="OK",command=lambda: collectInputs()).grid(row=maxNumLevelValues+4,column=0)
         tk.Button(buttonWindow, text="Back",command=lambda: master.switch_frame(selectLevelsPage,experimentDf,homePage)).grid(row=maxNumLevelValues+4,column=1)
         tk.Button(buttonWindow, text="Quit",command=lambda: quitCommand()).grid(row=maxNumLevelValues+4,column=2)
 
 class assignLevelsToParametersPage(tk.Frame):
-    
+
     def __init__(self, master,temp):
         parameterTypeDict = {
                 'categorical':['Color','Order', 'Row', 'Column','None'],
                 '1d':['Color','Row','Column','None'],
                 '3d':['Row','Column','X Axis Values','Y Axis Values']}
-        
+
         if not multipleDimensions:
             parameterTypeDict['2d'] = ['Marker','Color','Size','Row','Column','X Axis Values','None']
-        else:    
+        else:
             parameterTypeDict['2d'] = ['Marker','Color','Size','Row','Column','None']
 
         tk.Frame.__init__(self, master)
@@ -217,7 +221,7 @@ class assignLevelsToParametersPage(tk.Frame):
         parametersSelected = {}
         mainWindow = tk.Frame(self)
         mainWindow.pack(side=tk.TOP,padx=10,pady=10)
-        
+
         tk.Label(mainWindow, text='Which plotting parameter do you want to assign to each of your figure levels?',pady=10).grid(row=0,column = 0,columnspan = len(figureLevelList))
         rblist = []
         parameterVarList = []
@@ -267,18 +271,18 @@ class assignLevelsToParametersPage(tk.Frame):
             else:
                 if plotType == '2d' and 'X Axis Values' not in parametersSelected:
                     if 'Feature' in experimentDf.index.names and 'Node' not in experimentDf.columns[0]:
-                        parametersSelected['X Axis Values'] = 'Time' 
+                        parametersSelected['X Axis Values'] = 'Time'
                     else:
                         parametersSelected['X Axis Values'] = experimentDf.columns[0]
             master.switch_frame(plotElementsGUIPage)
-        
+
         def quitCommand():
             exitBoolean = True
             quit()
-        
+
         buttonWindow = tk.Frame(self)
         buttonWindow.pack(side=tk.TOP,pady=10)
-        
+
         tk.Button(buttonWindow, text="OK",command=lambda: collectInputs()).grid(row=len(parameterTypeDict[plotType])+2,column=0)
         tk.Button(buttonWindow, text="Back",command=lambda: master.switch_frame(selectLevelValuesPage,assignLevelsToParametersPage,trueLabelDict)).grid(row=len(parameterTypeDict[plotType])+2,column=1)
         tk.Button(buttonWindow, text="Quit",command=lambda: quitCommand()).grid(row=len(parameterTypeDict[plotType])+2,column=2)
@@ -301,13 +305,13 @@ def getDefaultAxisTitles():
                     xaxistitle = parametersSelected['X Axis Values']
                     if 'Node' in experimentDf.columns[0]:
                         if plotType == '2d':
-                            yaxistitle = experimentDf.columns[1] 
+                            yaxistitle = experimentDf.columns[1]
                         else:
                             cbartitle = experimentDf.columns[1]
                     else:
                         if 'Feature' in experimentDf.index.names:
                             if plotType == '2d':
-                                yaxistitle = 'value' 
+                                yaxistitle = 'value'
                             else:
                                 cbartitle = 'value'
                         else:
@@ -332,9 +336,9 @@ class plotElementsGUIPage(tk.Frame):
             tempDict[level] = levelValues
         experimentParameters = {}
         experimentParameters['allLevelValues'] = tempDict
-        """ 
+        """
         global dataType
-        if 'cell' in pickleFileName: 
+        if 'cell' in pickleFileName:
             dataType = 'cell'
         elif 'cyt' in pickleFileName:
             dataType = 'cyt'
@@ -349,10 +353,10 @@ class plotElementsGUIPage(tk.Frame):
         axisDict = {'categorical':['X','Y'],'1d':['Y'],'2d':['X','Y'],'3d':['X','Y','Colorbar']}
         scalingList = ['Linear','Logarithmic','Biexponential']
         axisSharingList = ['col','row','']
-        axisTitleDefaults = getDefaultAxisTitles() 
-        
+        axisTitleDefaults = getDefaultAxisTitles()
+
         tk.Frame.__init__(self, master)
-        
+
         mainWindow = tk.Frame(self)
         mainWindow.pack(side=tk.TOP,padx=10,pady=10)
 
@@ -375,12 +379,12 @@ class plotElementsGUIPage(tk.Frame):
         limitEntryList = []
         for axis,axisIndex in zip(axisDict[plotType],range(len(axisDict[plotType]))):
             tk.Label(mainWindow, text=axis+ ' Axis').grid(row=0,column=axisIndex+1)
-            
+
             e1 = tk.Entry(mainWindow)
             e1.grid(row=1,column=axisIndex+1)
             e1.insert(0, axisTitleDefaults[axisIndex])
             entryList.append(e1)
-            
+
             axisRadioButtonList = []
             v = tk.StringVar(value='Linear')
             for scaling,scalingIndex in zip(scalingList,range(len(scalingList))):
@@ -389,17 +393,17 @@ class plotElementsGUIPage(tk.Frame):
                 axisRadioButtonList.append(rb)
             radioButtonList.append(axisRadioButtonList)
             scalingVariableList.append(v)
-            
+
             e2 = tk.Entry(mainWindow)
             e2.grid(row=len(scalingList)+2,column=axisIndex+1)
             linearRangeScalingList.append(e2)
-            
+
             b = tk.BooleanVar(value=False)
             cb = tk.Checkbutton(mainWindow,variable=b)
             cb.grid(row=len(scalingList)+3,column=axisIndex+1)
             checkButtonList.append(cb)
             checkButtonVarList.append(b)
-       
+
             shareWindow = tk.Frame(mainWindow)
             shareWindow.grid(row=len(scalingList)+4,column=axisIndex+1)
             shareString = tk.StringVar(value='None')
@@ -437,7 +441,7 @@ class plotElementsGUIPage(tk.Frame):
                         'numeric':checkButtonVarList[axisIndex].get(),
                         'share':share,
                         'limit':[limitEntryList[axisIndex][0].get(),limitEntryList[axisIndex][1].get()]}
-            
+
             plotSpecificDict = {}
             if subPlotType == 'kde':
                 scaleBool = ipe.getRadiobuttonValues(modeScaleRadiobuttonVarsDict)['scale to mode']
@@ -446,27 +450,27 @@ class plotElementsGUIPage(tk.Frame):
                 else:
                     plotSpecificDict['scaleToMode'] = False
                 plotSpecificDict['smoothing'] = int(ipe.getSliderValues(smoothingSliderList,['smoothing'])['smoothing'])
-            
+
             useModifiedDf = False
             sName = titleEntry.get()
             subsettedDfList,subsettedDfListTitles,figureLevels,levelValuesPlottedIndividually = fpl.produceSubsettedDataFrames(experimentDf,fullFigureLevelBooleanList,includeLevelValueList,self.tld)
             folderName = 'test'
             dataType = 'dr'
             fpl.plotFacetedFigures(folderName,plotType,subPlotType,dataType,subsettedDfList,subsettedDfListTitles,figureLevels,levelValuesPlottedIndividually,useModifiedDf,experimentDf,plotOptions,parametersSelected,addDistributionPoints,originalLevelValueOrders=experimentParameters['allLevelValues'],subfolderName=sName,context=ipe.getRadiobuttonValues(contextRadiobuttonVarsDict)['context'],height=float(heightEntry.get()),aspect=float(widthEntry.get()),titleBool=ipe.getRadiobuttonValues(plotTitleRadiobuttonVarsDict)['plotTitle'],colwrap=int(colWrapEntry.get()),legendBool=ipe.getRadiobuttonValues(legendRadiobuttonVarsDict)['legend'],outlierBool=ipe.getRadiobuttonValues(outlierRadiobuttonVarsDict)['remove outliers'],plotAllVar=plotAllVar,titleAdjust=titleAdjustEntry.get(),plotSpecificDict = plotSpecificDict)
-            
+
         titleWindow = tk.Frame(self)
         titleWindow.pack(side=tk.TOP,pady=10)
         tk.Label(titleWindow,text='Enter subfolder for these plots (optional):').grid(row=0,column=0)
         titleEntry = tk.Entry(titleWindow,width=15)
         titleEntry.grid(row=0,column=1)
-        
+
         miscOptionsWindow = tk.Frame(self)
         miscOptionsWindow.pack(side=tk.TOP,pady=10)
-        
+
         contextWindow = tk.Frame(miscOptionsWindow)
         contextWindow.grid(row=0,column=0,sticky=tk.N)
-        contextRadiobuttonList,contextRadiobuttonVarsDict = ipe.createParameterSelectionRadiobuttons(contextWindow,['context'],{'context':['notebook','talk','poster']}) 
-        
+        contextRadiobuttonList,contextRadiobuttonVarsDict = ipe.createParameterSelectionRadiobuttons(contextWindow,['context'],{'context':['notebook','talk','poster']})
+
         figureDimensionWindow = tk.Frame(miscOptionsWindow)
         figureDimensionWindow.grid(row=0,column=1,sticky=tk.N)
         tk.Label(figureDimensionWindow,text='figure dimensions').grid(row=0,column=0)
@@ -481,52 +485,52 @@ class plotElementsGUIPage(tk.Frame):
         widthEntry.insert(0, '1')
         heightEntry.grid(row=1,column=1)
         widthEntry.grid(row=2,column=1)
-        
+
         plotTitleWindow = tk.Frame(miscOptionsWindow)
         plotTitleWindow.grid(row=0,column=2,sticky=tk.N)
-        plotTitleRadiobuttonList,plotTitleRadiobuttonVarsDict = ipe.createParameterSelectionRadiobuttons(plotTitleWindow,['plotTitle'],{'plotTitle':['yes','no']}) 
-        
+        plotTitleRadiobuttonList,plotTitleRadiobuttonVarsDict = ipe.createParameterSelectionRadiobuttons(plotTitleWindow,['plotTitle'],{'plotTitle':['yes','no']})
+
         legendWindow = tk.Frame(miscOptionsWindow)
         legendWindow.grid(row=0,column=3,sticky=tk.N)
-        legendRadiobuttonList,legendRadiobuttonVarsDict = ipe.createParameterSelectionRadiobuttons(legendWindow,['legend'],{'legend':['yes','no']}) 
-        
+        legendRadiobuttonList,legendRadiobuttonVarsDict = ipe.createParameterSelectionRadiobuttons(legendWindow,['legend'],{'legend':['yes','no']})
+
         colWrapWindow = tk.Frame(miscOptionsWindow)
         colWrapWindow.grid(row=0,column=4,sticky=tk.N)
         tk.Label(colWrapWindow,text='column wrap:').grid(row=0,column=0)
         colWrapEntry = tk.Entry(colWrapWindow,width=5)
         colWrapEntry.insert(0, '5')
         colWrapEntry.grid(row=1,column=0)
-        
+
         titleAdjustWindow = tk.Frame(miscOptionsWindow)
         titleAdjustWindow.grid(row=0,column=5,sticky=tk.N)
         tk.Label(titleAdjustWindow,text='title location (% of window):').grid(row=0,column=0)
         titleAdjustEntry = tk.Entry(titleAdjustWindow,width=5)
         titleAdjustEntry.insert(0, '')
         titleAdjustEntry.grid(row=1,column=0)
-        
+
         outlierWindow = tk.Frame(miscOptionsWindow)
         outlierWindow.grid(row=0,column=6,sticky=tk.N)
-        outlierRadiobuttonList,outlierRadiobuttonVarsDict = ipe.createParameterSelectionRadiobuttons(outlierWindow,['remove outliers'],{'remove outliers':['yes','no']}) 
+        outlierRadiobuttonList,outlierRadiobuttonVarsDict = ipe.createParameterSelectionRadiobuttons(outlierWindow,['remove outliers'],{'remove outliers':['yes','no']})
         outlierRadiobuttonVarsDict['remove outliers'].set('no')
-        
+
         if subPlotType == 'kde':
             #Scale to mode button
             subPlotSpecificWindow = tk.Frame(self)
             subPlotSpecificWindow.pack(side=tk.TOP,pady=10)
             modeScaleWindow = tk.Frame(subPlotSpecificWindow)
             modeScaleWindow.grid(row=0,column=0,sticky=tk.N)
-            modeScaleRadiobuttonList,modeScaleRadiobuttonVarsDict = ipe.createParameterSelectionRadiobuttons(modeScaleWindow,['scale to mode'],{'scale to mode':['yes','no']}) 
+            modeScaleRadiobuttonList,modeScaleRadiobuttonVarsDict = ipe.createParameterSelectionRadiobuttons(modeScaleWindow,['scale to mode'],{'scale to mode':['yes','no']})
             modeScaleRadiobuttonVarsDict['scale to mode'].set('no')
             #Smoothness (or bandwidth) slider
             smoothnessWindow = tk.Frame(subPlotSpecificWindow)
             smoothnessWindow.grid(row=0,column=1,sticky=tk.N)
             smoothingSliderList = ipe.createParameterAdjustmentSliders(smoothnessWindow,['smoothing'],{'smoothing':[1,99,2,27]})
-        
+
         plotButtonWindow = tk.Frame(self)
         plotButtonWindow.pack(side=tk.TOP,pady=10)
         tk.Button(plotButtonWindow, text="Generate First Plot",command=lambda: collectInputs(False)).grid(row=0,column=0)
         tk.Button(plotButtonWindow, text="Generate All Plots",command=lambda: collectInputs(True)).grid(row=0,column=1)
-        
+
         buttonWindow = tk.Frame(self)
         buttonWindow.pack(side=tk.TOP,pady=10)
         tk.Button(buttonWindow, text="OK",command=lambda: master.switch_frame(selectLevelsPage,experimentDf,homePage)).grid(row=len(scalingList)+4,column=0)

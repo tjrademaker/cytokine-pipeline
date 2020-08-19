@@ -1,11 +1,12 @@
 *.DS_Store
-*__pycache__/*
+*__pycache__*
 data/processed/*.hdf
+data/*/*.pkl
 figures/*/*.pdf
 figures/*/*.png
 output/parameter-dataframes/*.pkl
 output/parameter-space-dataframes/*.pkl
-output/projected_dataframes/*.pkl
+output/projected-dataframes/*.pkl
 output/temp/*.pkl
 output/trained-networks/*.pkl
-data/*/*.pkl
+output/*.pkl

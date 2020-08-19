@@ -15,9 +15,8 @@ if sys_pf == 'darwin':
 import matplotlib.pyplot as plt
 import tkinter as tk
 import seaborn as sns
-sys.path.insert(0, '../gui/plotting')
-from plottingGUI import selectLevelsPage
-from adapt_dataframes import set_standard_order  
+from scripts.gui.plotting.plottingGUI import selectLevelsPage
+from scripts.process.adapt_dataframes import set_standard_order
 
 splitPath = os.getcwd().split('/')
 path = '/'.join(splitPath[:splitPath.index('cytokine-pipeline-master')+1])+'/'
@@ -25,7 +24,7 @@ path = '/'.join(splitPath[:splitPath.index('cytokine-pipeline-master')+1])+'/'
 class WeightMatrixSelectionPage(tk.Frame):
     def __init__(self, master, lspB,nsp):
         tk.Frame.__init__(self, master)
-        
+
         global latentSpaceBool,nextSwitchPage
         latentSpaceBool = lspB
         #Select levels page is nsp if we're starting at latent_space.py, Select Fit/action is nsp if starting at parameterization.py
@@ -147,8 +146,8 @@ class TrainingDatasetSelectionPage(tk.Frame):
 
         """BEGIN TEMP SCROLLBAR CODE"""
         labelWindow1 = tk.Frame(self)
-        labelWindow1.pack(side=tk.TOP,padx=10,fill=tk.X,expand=True) 
-        
+        labelWindow1.pack(side=tk.TOP,padx=10,fill=tk.X,expand=True)
+
         #Make canvas
         w1 = tk.Canvas(labelWindow1, width=600, height=400,background="white", scrollregion=(0,0,3000,1000))
 
@@ -163,10 +162,10 @@ class TrainingDatasetSelectionPage(tk.Frame):
         #Make and add frame for widgets inside of canvas
         #canvas_frame = tk.Frame(w1)
         mainWindow = tk.Frame(w1)
-        mainWindow.pack() 
+        mainWindow.pack()
         w1.create_window((0,0),window=mainWindow, anchor = tk.NW)
         """END TEMP SCROLLBAR CODE"""
-        
+
         datasetVar = tk.StringVar(value=trainingDatasets[0])
         for i,dataset in enumerate(trainingDatasets):
             rb = tk.Radiobutton(mainWindow, text=dataset,padx = 20, variable=datasetVar,value=dataset)
@@ -183,7 +182,7 @@ class TrainingDatasetSelectionPage(tk.Frame):
             featureColumns = pd.read_pickle(path+"output/trained-networks/train-"+datasetName+".pkl").columns
             df_WT = df_WT.loc[:,featureColumns]
             print(df_WT)
-            #Normalize WT 
+            #Normalize WT
             df_WT=(df_WT - df_min)/(df_max - df_min)
             #Project WT on latent space
             df_WT_proj=pd.DataFrame(np.dot(df_WT,weightMatrix.coefs_[0]),index=df_WT.index,columns=["Node 1","Node 2"])
@@ -245,7 +244,7 @@ def import_WT_output():
                 mask=np.array(mask) & np.array([index == naive_pairs[index_name] for index in df.index.get_level_values(index_name)])
                 df=df.droplevel([index_name])
 
-        df=pd.concat([df[mask]],keys=[file[:-4]],names=["Data"]) #add experiment name as multiindex level 
+        df=pd.concat([df[mask]],keys=[file[:-4]],names=["Data"]) #add experiment name as multiindex level
 
         if "df_full" not in locals():
             df_full=df.copy()
@@ -264,7 +263,7 @@ def import_mutant_output(mutant):
     Returns:
         df_full (dataframe): the dataframe with processed cytokine data
     """
-    
+
     naive_level_values={
                 "ActivationType": "Naive",
                 "Antibody": "None",
@@ -277,7 +276,7 @@ def import_mutant_output(mutant):
                 "TCellType": "OT1",
                 "TLR_Agonist":"None",
             }
-    
+
     mutant_levels={
                 "Tumor": ["APC","APCType","IFNgPulseConcentration"],
                 "Activation": ["ActivationType"],
@@ -289,7 +288,7 @@ def import_mutant_output(mutant):
                 "ITAMDeficient":["Genotype"],
                 "NewPeptide":[]
             }
-    
+
     essential_levels=["TCellNumber","Peptide","Concentration","Time"]
 
     folder=path+"data/processed/"
@@ -300,18 +299,18 @@ def import_mutant_output(mutant):
             continue
 
         df=pd.read_hdf(folder + "/" + file)
-        
+
         # If level not in essential levels or mutant-required level, keep naive level values and drop level
         for level in df.index.names:
             if level not in essential_levels+mutant_levels[mutant]:
                 df=df[df.index.get_level_values(level)==naive_level_values[level]]
                 df=df.droplevel(level,axis=0)
-                
+
         df=pd.concat([df],keys=[file[:-4]],names=["Data"]) #add experiment name as multiindex level
-        
+
         print(file)
         print(df.index.names)
-        
+
         if "df_full" not in locals():
             df_full=df.copy()
         else:

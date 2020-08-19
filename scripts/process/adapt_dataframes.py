@@ -48,7 +48,7 @@ Level value changes
 import warnings
 warnings.filterwarnings("ignore")
 
-import os,pickle,sys,re
+import os, pickle, sys, re
 import numpy as np
 import pandas as pd
 
@@ -97,7 +97,7 @@ def sort_SI_column(columnValues,unitSuffix):
             if splitString[1] == '':
                 numeric_val = 0
             else:
-                #If correctly SI formatted, use si prefix dict 
+                #If correctly SI formatted, use si prefix dict
                 if len(splitString[1]) < 3:
                     siUnit = splitString[1].split(unitSuffix)[0]
                 #If strange unit, like ug/mL, just assign lowest SI prefix to shunt to the end of the order
@@ -142,7 +142,7 @@ def set_standard_order(df,returnSortedLevelValues=False):
 
         if not returnSortedLevelValues:
             df = df.sort_values(levelsToSort,ascending=False).iloc[:,:sortColumnRemovalVar]
-            return df 
+            return df
         else:
             sortedLevelValues = {}
             for levelToSort in levelsToSort:
@@ -189,7 +189,7 @@ def main():
                 elif filename in tumor_timeseries[3]:
                         df["APC"]="B16"
                         df["APCType"]="Tumor"
-                        df["Concentration"]="None"                      
+                        df["Concentration"]="None"
                         df["TCellNumber"]=df.TCellNumber.str.replace("K","k")
                         df["TumorCellNumber"]=df.TumorCellNumber.str.replace("K","k")
                         df=df[df.TumorCellNumber=="17k"]
@@ -252,7 +252,7 @@ def main():
                 # Set (possible new) columns as index levels except for the column with concentrations called 0
                 # Place standard levels last (TCellNumber/Peptide/Concentration)
                 df.set_index([col for col in df.columns if col is not 0],inplace=True)
-                
+
                 standard_levels=["TCellNumber","Peptide","Concentration"]
                 df=df.reorder_levels([level for level in df.index.names if level not in standard_levels]+standard_levels)
 
