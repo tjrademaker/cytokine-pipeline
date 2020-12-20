@@ -207,51 +207,6 @@ class TrainingDatasetSelectionPage(tk.Frame):
         tk.Button(buttonWindow, text="Back",command=lambda: master.switch_frame(WTorMutantDatasetSelectionPage)).pack(in_=buttonWindow,side=tk.LEFT)
         tk.Button(buttonWindow, text="Quit",command=lambda: quit()).pack(in_=buttonWindow,side=tk.LEFT)
 
-def import_WT_output():
-    """Import splines from wildtype naive OT-1 T cells by looping through all datasets
-    Returns:
-            df_full (dataframe): the dataframe with processed cytokine data
-    """
-
-    folder="../data/processed/"
-
-    naive_pairs={
-            "ActivationType": "Naive",
-            "Antibody": "None",
-            "APC": "B6",
-            "APCType": "Splenocyte",
-            "CARConstruct":"None",
-            "CAR_Antigen":"None",
-            "Genotype": "WT",
-            "IFNgPulseConcentration":"None",
-            "TCellType": "OT1",
-            "TLR_Agonist":"None",
-            "TumorCellNumber":"0k",
-            "DrugAdditionTime":24,
-            "Drug":"Null"
-            }
-
-    for file in os.listdir(folder):
-
-        if ".hdf" not in file:
-            continue
-
-        df=pd.read_hdf(folder + file)
-        mask=[True] * len(df)
-
-        for index_name in df.index.names:
-            if index_name in naive_pairs.keys():
-                mask=np.array(mask) & np.array([index == naive_pairs[index_name] for index in df.index.get_level_values(index_name)])
-                df=df.droplevel([index_name])
-
-        df=pd.concat([df[mask]],keys=[file[:-4]],names=["Data"]) #add experiment name as multiindex level
-
-        if "df_full" not in locals():
-            df_full=df.copy()
-        else:
-            df_full=pd.concat((df_full,df))
-
-    return df_full
 
 def import_mutant_output(mutant):
     """Import processed cytokine data from an experiment that contains mutant data

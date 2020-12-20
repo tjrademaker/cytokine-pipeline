@@ -204,7 +204,7 @@ def sigmoid_conc_full(tau, params, v2v1_ratio=1.):
     v2 = v2v1_ratio * v1
 
     # Vector where 1st dimension is n1, second is n2
-    r = np.zeros((2, t.shape[0]))
+    r = np.zeros((2, tau.shape[0]))
 
     # Common terms
     bound_exp = 1 - np.exp(-tau)
@@ -280,8 +280,74 @@ def ballistic_sigmoid(tau, a0, t0, theta, v1, gamma, v2v1_ratio=1.):
 
     return np.array([N1, N2])
 
+
 ## Improved ballistic model with a sigmoid and free alpha (more parameters)
-## TODO!
+# Full  model for sigmoid concentration n1 and n2 given just above.
+def sigmoid_conc_full_freealpha(t, params):
+    """ Argument t can be an array, other parameters are scalars. params is a list. """
+    # Extract parameters
+    a0, t0, theta, v1, alpha, beta = params
+    a1, a2 = a0 * np.cos(theta), a0 * np.sin(theta)  # theta in radians.
+    tau = t * alpha
+
+    # Vector where 1st dimension is n1, second is n2
+    r = np.zeros((2, t.shape[0]))
+
+    # Common terms
+    bound_exp = 1 - np.exp(-tau)
+    exp_beta = np.exp(gamma*(tau - t0)) + 1
+
+    # Node 1
+    r[0] = bound_exp * ((a1 + v1)/exp_beta - v1)
+
+    # Node 2
+    r[1] = (a2 + v2) * np.power(bound_exp, 2) / exp_beta - bound_exp * v2
+
+    return r
+
+
+# The main function computing [N_1, N_2]
+def ballistic_sigmoid_freealpha(times, a0, t0, theta, v1, alpha, beta, v2v1_ratio=1.):
+    """ Integral expression for N_1, N_2, based on the first-order
+    ballistic expression with a sigmoid for n_1 and n_2.
+
+    Args:
+        times (1darray): timepoints at which to compute the ballistic trajectories. Vector is doubled to accommodate fitting procedure
+        a0 (float): initial acceleration
+        t0 (float): time of half-maximum sigmoidal decay
+        theta (float): angle of initial velocity (radians)
+        v1 (float): terminal concentration in node 1
+        alpha (float): production time scale
+        beta (float): degradation time scale
+        fit (bool): if True, the function is called for fitting.
+            If false, don't double the return vector.
+        upbounds (list): upper bound on the value of each parameter,
+            for normalization in the regularization.
+        lambd (float): weight to give to the regularization term.
+    """
+    # Initialize some variables
+    a1, a2 = a0 * np.cos(theta), a0 * np.sin(theta)
+    v2 = v1 * v2v1_ratio
+    tau = times * alpha
+    tau0 = alpha * t0
+    gamma = beta / alpha
+
+    # Some terms used in both node 1 and 2
+    lnterm_0 = np.log(1 + np.exp(-gamma*t0)) / gamma
+    lnterm = np.log(np.exp(-gamma*tau) + np.exp(-gamma*t0)) / gamma
+    boundedint = tau + np.exp(-tau)
+    siginterm = sig_int(tau, t0, gamma)
+
+    # Constants to ensure it's zero at the origin
+    k1 = v1 / alpha - (a1 + v1) / alpha * (sig_int(0, t0, gamma) - lnterm_0)
+    k2 = v2 / alpha + (a2 + v2) / alpha * (sig_int(0, 2*t0, gamma/2)/2 - 2*sig_int(0, t0, gamma) + lnterm_0)
+
+    # Assemble terms
+    N1 = (a1 + v1) / alpha * (siginterm - lnterm) - v1 / alpha * boundedint + k1
+    N2 = (a2 + v2) / alpha * (2*siginterm - sig_int(2*tau, 2*t0, gamma/2)/2 - lnterm)
+    N2 += -v2 / alpha * boundedint + k2
+
+    return np.array([N1, N2])
 
 
 ### FUNCTIONS PERFORMING THE FIT FOR EACH TIME COURSE
@@ -390,34 +456,40 @@ def return_param_and_fitted_latentspace_dfs(df, fittingFunctionName, reg_rate=1.
             The hessian is obtained as J^T J, where J is the jacobian of the fit,
             scaled by the value of the parameters at the optimum (equivalent
             to computing derivatives with respect to log(param)).
+        df_v2v1 (pd.DataFrame): dataframe of v2_v1 ratios for each data set.
     """
-    # Time rescaling defined here along with models and inputted to other functions
     duration = df.index.get_level_values("Time").unique().max()
 
-    # TODO: add a separate option for free alpha.
     param_labels_dict = {
         'Constant velocity':["v0", "t0", "theta", "vt"],
         'Constant force':["F", "t0", "theta", "vt"],
-        'Sigmoid':["a0", "t0", "theta", "v1", "gamma"]
+        'Sigmoid':["a0", "t0", "theta", "v1", "gamma"],
+        'Sigmoid_freealpha': ["a0", "t0", "theta", "v1", "alpha", "beta"]
     }
     func_dict = {'Constant velocity':ballistic_v0,
                  'Constant force': ballistic_F,
-                 'Sigmoid':ballistic_sigmoid}
+                 'Sigmoid':ballistic_sigmoid,
+                 'Sigmoid_freealpha': ballistic_sigmoid_freealpha}
     bounds_dict = {
         'Constant velocity':[(0, 0, 0, 0), (5, 5, np.pi, 5)],
         'Constant force': [(0, 0, 0, 0), (5, 5, np.pi, 5)],
         'Sigmoid':[(0, 0, -2*np.pi/3, 0, time_scale/50),
-                    (5, (duration + 20)/time_scale, np.pi/3, 1, time_scale/2)]
+                    (5, (duration + 20)/time_scale, np.pi/3, 1, time_scale/2)],
+        'Sigmoid_freealpha':[(0, 0, -2*np.pi/3, 0, time_scale/50, time_scale/50),
+                            (5, (duration + 20)/time_scale, np.pi/3, 1,
+                            time_scale/2, time_scale/2)]
         }
     p0_dict = {
         'Constant velocity':[1, 1, 1, 1],
         'Constant force':[1, 1, 1, 1],
-        'Sigmoid':[1, 30 / time_scale, 0, 0.1, 1/7 * time_scale]
+        'Sigmoid':[1, 30 / time_scale, 0, 0.1, 1/7 * time_scale],
+        'Sigmoid_freealpha':[1, 30/time_scale, 0, 0.1, 1/7 * time_scale, 1.]
     }
     param_offsets_dict = {
         'Constant velocity': np.zeros(4),
         'Constant force': np.zeros(4),
-        'Sigmoid': np.array([0, 0, -np.pi/2, 0, 1])
+        'Sigmoid': np.array([0, 0, -np.pi/2, 0, 1]),
+        'Sigmoid_freealpha': np.array([0, 0, -np.pi/2, 0, 1, 1])
     }
 
     # Fit curves
@@ -434,6 +506,7 @@ def return_param_and_fitted_latentspace_dfs(df, fittingFunctionName, reg_rate=1.
     datasetParamList = []
     datasetFitList = []
     datasetHessList = []  # hessian without the regularization term contribution
+    datasetRatioList = []
     datasets = list(pd.unique(df.index.get_level_values('Data')))
     for dataset in datasets:
         datasetDf = df.xs([dataset], level=['Data'])
@@ -449,26 +522,28 @@ def return_param_and_fitted_latentspace_dfs(df, fittingFunctionName, reg_rate=1.
             fittingVars = dataset_df_params.loc[idx,param_labels]
             times = dataset_df_fit.loc[idx,:].index.get_level_values("Time").astype("float")/time_scale
             if not np.isnan(fittingVars.iloc[0]):
-                dataset_df_fit.loc[idx, :] = func(times, *fittingVars).T
+                dataset_df_fit.loc[idx, :] = func(times, *fittingVars, v2v1_ratio=v2_v1_ratio).T
             else:
                 dataset_df_fit.loc[idx, :] = np.nan
 
         datasetParamList.append(dataset_df_params)
         datasetFitList.append(dataset_df_fit)
         datasetHessList.append(dataset_df_hess)
+        datasetRatioList.append(v2_v1_ratio)
 
     df_params = pd.concat(datasetParamList, keys=datasets,names=['Data'])
     df_fit = pd.concat(datasetFitList, keys=datasets,names=['Data'])
     df_hess = pd.concat(datasetHessList, keys=datasets, names=['Data'])
+    df_v2v1 = pd.Series(datasetRatioList, index=pd.Index(datasets, name='Data'))
 
     # Compare fit vs splines
-    df_compare = combine_spline_df_with_fit(df, df_fit)
+    df_compare = combine_spline_df_with_fit(df.copy(), df_fit.copy())
 
-    return df_params, df_compare, df_hess
+    return df_params, df_compare, df_hess, df_v2v1
+
 
 ### CODE FOR THE GUI
 # TODO: bind the Sigmoid model to the GUI as well:
-#   - Regularization rate as an option when selecting the model to fit (change collectInputs)
 #   - Option to plot the FIM eigenvectors and eigenvalues (add an option in the class PlottingDataframe...)
 class FittingFunctionSelectionPage(tk.Frame):
     def __init__(self, master, df, bp):
@@ -484,7 +559,7 @@ class FittingFunctionSelectionPage(tk.Frame):
         l1.grid(row=0, column=0, sticky=tk.W)
         mainWindow.pack(side=tk.TOP, padx=10, pady=10)
 
-        functionList = ['Constant velocity', 'Constant force', 'Sigmoid']
+        functionList = ['Constant velocity', 'Constant force', 'Sigmoid', 'Sigmoid_freealpha']
         functionVar = tk.StringVar(value=functionList[0])
         rblist = []
         for i, function in enumerate(functionList):
@@ -603,7 +678,7 @@ class FittingFunctionSelectionPage(tk.Frame):
 
             global df_params_plot, df_compare_plot
             # This is the only place where return_param_... is used.
-            df_params_plot, df_compare_plot, df_hess_plot = \
+            df_params_plot, df_compare_plot, df_hess_plot, df_v2v1 = \
                 return_param_and_fitted_latentspace_dfs(dfToParameterize,
                     functionName, reg_rate=regrate, time_scale=tscale)
             # TODO: use df_hess_plot for a Fisher info. analysis of the fit.

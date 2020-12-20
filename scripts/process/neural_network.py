@@ -176,15 +176,12 @@ class InputDatasetSelectionPage(tk.Frame):
         tk.Button(buttonWindow, text="Back",command=lambda: master.switch_frame(master.homepage)).grid(row=maxNumLevelValues+4,column=1)
         tk.Button(buttonWindow, text="Quit",command=lambda: quit()).grid(row=maxNumLevelValues+4,column=2)
 
-def import_WT_output():
+def import_WT_output(folder=path+"data/processed/"):
     """Import splines from wildtype naive OT-1 T cells by looping through all datasets
 
     Returns:
             df_full (dataframe): the dataframe with processed cytokine data
     """
-
-    folder=path+"data/processed/"
-
     naive_pairs={
             "ActivationType": "Naive",
             "Antibody": "None",
