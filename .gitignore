@@ -11,3 +11,4 @@ output/temp/*.pkl
 output/trained-networks/*.pkl
 output/*.pkl
 scripts/gui/plotting/*.pkl
+*.bak
