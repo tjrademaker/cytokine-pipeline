@@ -12,3 +12,6 @@ output/trained-networks/*.pkl
 output/*.pkl
 scripts/gui/plotting/*.pkl
 *.bak
+all_data/
+notebooks/.ipynb_checkpoints/
+figures/*/*.pkl
