@@ -7,15 +7,16 @@ import sys,os,json,pickle,math,itertools
 from scipy import stats
 import subprocess
 from matplotlib.colors import LogNorm,SymLogNorm
-sys.path.insert(0, 'scripts/gui/plotting/')
-from miscFunctions import sortSINumerically,reindexDataFrame
-from miscFunctions import returnGates,returnTicks
+
+from scripts.gui.plotting.miscFunctions import (sortSINumerically,
+    reindexDataFrame, returnGates, returnTicks)
 from operator import itemgetter
-import facetPlot1D as fp1D
-import facetPlotCategorical as fpCategorical
-import facetPlot2D as fp2D
-import facetPlot3D as fp3D
-from facetPlot3D import draw_faceted_heatmap,returnHeatmapAspectRatios
+import scripts.gui.plotting.facetPlot1D as fp1D
+import scripts.gui.plotting.facetPlotCategorical as fpCategorical
+import scripts.gui.plotting.facetPlot2D as fp2D
+import scripts.gui.plotting.facetPlot3D as fp3D
+from scripts.gui.plotting.facetPlot3D import (draw_faceted_heatmap,
+    returnHeatmapAspectRatios)
 
 idx = pd.IndexSlice
 splitPath = os.getcwd().split('/')

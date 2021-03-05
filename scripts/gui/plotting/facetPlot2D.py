@@ -6,10 +6,9 @@ import numpy as np
 import pickle,sys,os
 from itertools import groupby
 from matplotlib.widgets import RadioButtons,Button,CheckButtons,TextBox
-sys.path.insert(0, '../../programs/dataProcessing/')
-from miscFunctions import reindexDataFrame
+from scripts.gui.dataprocessing.miscFunctions import reindexDataFrame
 from matplotlib import colors,ticker
-    
+
 def plot(plottingDf,subsettedDf,kwargs,facetKwargs,auxillaryKwargs,plotOptions):
     #Make sure there are markers at each column variable
     if 'Time' in plottingDf.columns:
@@ -48,7 +47,7 @@ def plot(plottingDf,subsettedDf,kwargs,facetKwargs,auxillaryKwargs,plotOptions):
             elif plotOptions[axis]['axisScaling'] == 'Biexponential':
                 for i in range(k):
                     fg.fig.get_axes()[i].set_yscale('symlog',linthreshx=plotOptions[axis]['linThreshold'])
-            
+
             if str(plotOptions[axis]['limit'][0]) != '' or str(plotOptions[axis]['limit'][1]) != '':
                 for i in range(k):
                     if str(plotOptions[axis]['limit'][0]) != '' and str(plotOptions[axis]['limit'][1]) != '':
@@ -64,8 +63,8 @@ def plot(plottingDf,subsettedDf,kwargs,facetKwargs,auxillaryKwargs,plotOptions):
                     fg.fig.get_axes()[i].set_xscale('log')
             elif plotOptions[axis]['axisScaling'] == 'Biexponential':
                 for i in range(k):
-                    fg.fig.get_axes()[i].set_xscale('symlog',linthreshx=plotOptions[axis]['linThreshold']) 
-            
+                    fg.fig.get_axes()[i].set_xscale('symlog',linthreshx=plotOptions[axis]['linThreshold'])
+
             if str(plotOptions[axis]['limit'][0]) != '' or str(plotOptions[axis]['limit'][1]) != '':
                 for i in range(k):
                     if str(plotOptions[axis]['limit'][0]) != '' and str(plotOptions[axis]['limit'][1]) != '':
@@ -74,5 +73,5 @@ def plot(plottingDf,subsettedDf,kwargs,facetKwargs,auxillaryKwargs,plotOptions):
                         if str(plotOptions[axis]['limit'][0]) != '':
                             fg.fig.get_axes()[i].set_xlim(bottom=float(plotOptions[axis]['limit'][0]))
                         else:
-                            fg.fig.get_axes()[i].set_xlim(top=float(plotOptions[axis]['limit'][1])) 
+                            fg.fig.get_axes()[i].set_xlim(top=float(plotOptions[axis]['limit'][1]))
     return fg

@@ -1,5 +1,11 @@
 #! /usr/bin/env python3
-"""Fit curves in latent space"""
+"""Fit curves in latent space
+
+@author: tjrademaker, frbourassa, acharsj
+    tjrademaker: constant velocity, constant force
+    frbourassa: sigmoid models
+    acharsj: GUI
+"""
 
 import warnings
 warnings.filterwarnings("ignore")

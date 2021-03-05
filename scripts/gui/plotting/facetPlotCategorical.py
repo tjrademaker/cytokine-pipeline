@@ -6,10 +6,9 @@ import numpy as np
 import pickle,sys,os
 from itertools import groupby
 import math
-sys.path.insert(0, '../../programs/dataProcessing/')
-from miscFunctions import reindexDataFrame
+from scripts.gui.dataprocessing.miscFunctions import reindexDataFrame
 from matplotlib import colors,ticker
-    
+
 def returnLogYTicksAndLabels(yvals):
     miny = math.floor(yvals.values.min())
     maxy = math.ceil(yvals.values.max())
@@ -59,7 +58,7 @@ def plot(plottingDf,subsettedDf,kwargs,facetKwargs,auxillaryKwargs,plotOptions):
         secondkwargs['edgecolor'] = 'black'
         secondkwargs['linewidth'] = 0.3
         secondkwargs['zorder'] = 1
-        swarm = True 
+        swarm = True
         axisIndex  = 0
         if 'row' in kwargs and 'col' in kwargs:
             for rowVal in pd.unique(plottingDf[kwargs['row']]):
@@ -108,7 +107,7 @@ def plot(plottingDf,subsettedDf,kwargs,facetKwargs,auxillaryKwargs,plotOptions):
         #if plotOptions['Y']['axisScaling'] == 'Logarithmic':
             #for ax in fg.axes.flat:
                 #ax.set_ylim(min(plottingDf[kwargs['y']])+np.log10(0.8),max(plottingDf[kwargs['y']])+np.log10(1.2))
-    
+
     if auxillaryKwargs['subPlotType'] in ['swarm','strip'] and plotOptions['Y']['axisScaling'] == 'Logarithmic':
         allyticks,allyticklabels,allminoryticks = returnLogYTicksAndLabels(plottingDf[kwargs['y']])
         for axis in fg.axes.flat:
@@ -131,7 +130,7 @@ def plot(plottingDf,subsettedDf,kwargs,facetKwargs,auxillaryKwargs,plotOptions):
                 elif plotOptions[axis]['axisScaling'] == 'Biexponential':
                     for i in range(k):
                         fg.fig.get_axes()[i].set_yscale('symlog',linthreshx=plotOptions[axis]['linThreshold'])
-                
+
                 if str(plotOptions[axis]['limit'][0]) != '' or str(plotOptions[axis]['limit'][1]) != '':
                     for i in range(k):
                         if str(plotOptions[axis]['limit'][0]) != '' and str(plotOptions[axis]['limit'][1]) != '':
@@ -147,8 +146,8 @@ def plot(plottingDf,subsettedDf,kwargs,facetKwargs,auxillaryKwargs,plotOptions):
                         fg.fig.get_axes()[i].set_xscale('log')
                 elif plotOptions[axis]['axisScaling'] == 'Biexponential':
                     for i in range(k):
-                        fg.fig.get_axes()[i].set_xscale('symlog',linthreshx=plotOptions[axis]['linThreshold']) 
-                
+                        fg.fig.get_axes()[i].set_xscale('symlog',linthreshx=plotOptions[axis]['linThreshold'])
+
                 if str(plotOptions[axis]['limit'][0]) != '' or str(plotOptions[axis]['limit'][1]) != '':
                     for i in range(k):
                         if str(plotOptions[axis]['limit'][0]) != '' and str(plotOptions[axis]['limit'][1]) != '':
