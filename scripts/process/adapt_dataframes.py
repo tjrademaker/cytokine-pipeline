@@ -67,7 +67,8 @@ level_name_changes={
     "APC Type":"APCType",
     "APC_Type":"APCType",
     "Agonist":"Peptide",
-    "TCR_Antigen":"Peptide"
+    "TCR_Antigen":"Peptide",
+    "TIL": "TCellType",
 }
 
 tumor_timeseries = [
@@ -82,6 +83,8 @@ activation_timeseries = ["Activation_TCellNumber_1"]
 itamdef_timeseries = ["ITAMDeficient_OT1_Timeseries_%d"%num for num in [9,10,11]]
 
 tcelltype_timeseries = ["TCellTypeComparison_OT1,P14,F5_Timeseries_3"]
+
+human_timeseries = ["Merlino_TIL_2", "hTCR_1"]
 
 def sort_SI_column(columnValues,unitSuffix):
     si_prefix_dict = {'a':1e-18,'f':1e-15,'p':1e-12,'n':1e-9,'u':1e-6,'m':1e-3,'':1e0}
@@ -286,6 +289,19 @@ def treat_file(file):
                     df=df[df.Antagonist == "None"]
             df=df[["Cytokine","Peptide","Concentration","Time",0]]
 
+    # Human T cell datasets
+    elif filename == human_timeseries[0]:  # "Merlino_TIL_2".
+        # Prepend "TIL" to each TIL number
+        df["TCellType"] = "TIL" + df["TCellType"].astype(str)
+        df["Peptide"] = df["Tumor"].copy()
+        df["APCType"] = "None"
+        df["APCType"][df["Peptide"].apply(lambda x: x.startswith("M"))] = "Tumor"
+        df["Concentration"] = "0"  # should we do this?
+        df.drop(columns="Tumor", inplace=True)
+    elif filename == human_timeseries[1]:  # 'hTCR_1'
+        # Change g for molar units (1 g -> 1 M). Otherwise sorting fails.
+        df["Concentration"] = df["Concentration"].map(lambda x: x.replace("g", "M"))
+
     # Add TCellNumber level
     if "TCellNumber" not in df.columns:
         df["TCellNumber"]="100k"
@@ -321,7 +337,11 @@ def treat_file(file):
 def main():
     # folder is a global variable.
     for file in os.listdir(folder):
-        treat_file(file)
+        try:
+            treat_file(file)
+        except Exception as e:
+            print("Could not format", file, "due to error below; skipping.")
+            print(e)
 
 if __name__ == "__main__":
     main()
