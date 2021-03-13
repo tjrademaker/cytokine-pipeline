@@ -183,23 +183,23 @@ def import_WT_output(folder=path+"data/processed/"):
             df_full (dataframe): the dataframe with processed cytokine data
     """
     naive_pairs={
-            "ActivationType": "Naive",
-            "Antibody": "None",
-            "APC": "B6",
-            "APCType": "Splenocyte",
-            "CARConstruct":"None",
-            "CAR_Antigen":"None",
-            "Genotype": "WT",
-            "IFNgPulseConcentration":"None",
-            "TCellType": "OT1",
-            "TLR_Agonist":"None",
-            "TumorCellNumber":"0k",
-            "DrugAdditionTime":36,
-            "Drug":"Null"
-            }
+        "ActivationType": "Naive",
+        "Antibody": "None",
+        "APC": "B6",
+        "APCType": "Splenocyte",
+        "CARConstruct": "None",
+        "CAR_Antigen": "None",
+        "Genotype": "WT",
+        "IFNgPulseConcentration": "None",
+        "TCellType": "OT1",
+        "TLR_Agonist": "None",
+        "TumorCellNumber": "0k",
+        "DrugAdditionTime": 36,
+        "Drug": "Null"
+    }
 
+    dfs_dict = {}
     for file in os.listdir(folder):
-        print(file)
         if ".hdf" not in file:
             continue
 
@@ -210,13 +210,10 @@ def import_WT_output(folder=path+"data/processed/"):
             if index_name in naive_pairs.keys():
                 mask=np.array(mask) & np.array([index == naive_pairs[index_name] for index in df.index.get_level_values(index_name)])
                 df=df.droplevel([index_name])
-
-        df=pd.concat([df[mask]],keys=[file[:-4]],names=["Data"]) #add experiment name as multiindex level
-
-        if "df_full" not in locals():
-            df_full=df.copy()
-        else:
-            df_full=pd.concat((df_full,df))
+        dfs_dict[file[:-4]] = df[mask]
+        print(file)
+    # Concatenate all dfs
+    df_full = pd.concat(dfs_dict, names=["Data"])
     return df_full
 
 def plot_weights(mlp,cytokines,peptides,**kwargs):
