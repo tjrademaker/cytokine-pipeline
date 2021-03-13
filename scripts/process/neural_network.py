@@ -195,7 +195,9 @@ def import_WT_output(folder=path+"data/processed/"):
         "TLR_Agonist": "None",
         "TumorCellNumber": "0k",
         "DrugAdditionTime": 36,
-        "Drug": "Null"
+        "Drug": "Null",
+        "ConditionType": "Null",
+        "TCR": "OT1"
     }
 
     dfs_dict = {}
@@ -212,6 +214,7 @@ def import_WT_output(folder=path+"data/processed/"):
                 df=df.droplevel([index_name])
         dfs_dict[file[:-4]] = df[mask]
         print(file)
+        print(df[mask].index.names)
     # Concatenate all dfs
     df_full = pd.concat(dfs_dict, names=["Data"])
     return df_full

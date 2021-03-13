@@ -236,7 +236,9 @@ def import_mutant_output(mutant, folder=path+"data/processed/"):
         "TLR_Agonist": "None",
         "TumorCellNumber": "0k",
         "DrugAdditionTime": 36,
-        "Drug": "Null"
+        "Drug": "Null",
+        "ConditionType": "Control",
+        "TCR": "OT1"
     }
 
     mutant_levels={
