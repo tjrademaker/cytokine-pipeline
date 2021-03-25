@@ -152,7 +152,6 @@ def generate_splines(df, smoothed, rtol=1/2):#check_finite=True
         for row in spline_frame.index:
             y = np.concatenate(([0],smoothed.loc[row, cyto]))
             r = np.concatenate(([0],df.loc[row, cyto]))
-            # TODO: include monotonic cubic spline fitting (PCHIP) instead
             tolerance = rtol * np.sum((y - r)**2)
             spl = scipy.interpolate.UnivariateSpline(inter_t, y, s=tolerance)
             spline_frame.loc[row, cyto] = spl
@@ -362,6 +361,20 @@ class SplineDatasetSelectionPage(tk.Frame):
             rb = tk.Radiobutton(self.actionWindow,text=action, variable=actionVar,value=action)
             rb.grid(row=i+1,column=0,sticky=tk.W)
             rblist.append(rb)
+        # Buttons at the bottom to navigate between pages
+        # Pack them before the data selection so it does not shrink.
+        self.buttonWindow = tk.Frame(self)
+        self.buttonWindow.pack(side=tk.BOTTOM, pady=10, expand=tk.YES)
+
+        tk.Button(self.buttonWindow, text="OK",
+                command=lambda: collectInputs()
+            ).pack(in_=self.buttonWindow,side=tk.LEFT)
+        tk.Button(self.buttonWindow, text="Back",
+                command=lambda: master.switch_frame(master.homepage)
+            ).pack(in_=self.buttonWindow,side=tk.LEFT)
+        tk.Button(self.buttonWindow, text="Quit",
+                command=lambda: quit()
+            ).pack(in_=self.buttonWindow,side=tk.LEFT)
 
         # Collect the list of available data sets
         folder = path+"data/final/"
@@ -375,7 +388,7 @@ class SplineDatasetSelectionPage(tk.Frame):
         # Frame to contain the scrollable canvas and the scrollbar within the
         # main window.
         self.labelWindow1 = tk.Frame(self)
-        self.labelWindow1.pack(side=tk.TOP,padx=10,fill=tk.X,expand=True)
+        self.labelWindow1.pack(side=tk.TOP,padx=10,fill=tk.X,expand=tk.NO)
 
         # Make canvas inside that frame
         self.w1 = tk.Canvas(self.labelWindow1, borderwidth=0,
@@ -386,22 +399,17 @@ class SplineDatasetSelectionPage(tk.Frame):
         scr_v1.pack(side=tk.RIGHT,fill=tk.Y)
         # Add and bind scrollbar to canvas
         self.w1.config(yscrollcommand=scr_v1.set)
-        self.w1.pack(fill=tk.BOTH, expand=True)
+        self.w1.pack(fill=tk.BOTH, expand=tk.NO)
 
         # Make a frame to contain the list of radio buttons inside the Canvas
         # This is to create all buttons at once so they can be scrolled
         self.labelWindow = tk.Frame(self.w1)
-        self.labelWindow.pack(fill=tk.BOTH, expand=True)
+        self.labelWindow.pack(fill=tk.BOTH, expand=tk.NO)
         self.w1.create_window((0,0), window=self.labelWindow, anchor = tk.NW)
 
         # Bind the label frame's <Configure> to the canvas' size
         # See https://stackoverflow.com/questions/3085696/adding-a-scrollbar-to-a-group-of-widgets-in-tkinter
         self.labelWindow1.bind("<Configure>", self.onFrameConfigure)
-
-        # Also stretch the canvas to take all space between the top (options)
-        # and bottom buttons (navigation), making the latter a priority
-        # in terms of y space.
-        # TODO!
 
         # Adding radio buttons for the different datasets, all linked together
         # by a check/uncheck all
@@ -494,14 +502,6 @@ class SplineDatasetSelectionPage(tk.Frame):
                     stackedFullDf.columns = ['value']
                     master.switch_frame(selectLevelsPage,stackedFullDf,SplineDatasetSelectionPage)
 
-
-        # Finally, buttons at the bottom to navigate between pages
-        self.buttonWindow = tk.Frame(self)
-        self.buttonWindow.pack(side=tk.BOTTOM, pady=10)
-
-        tk.Button(self.buttonWindow, text="OK",command=lambda: collectInputs()).pack(in_=self.buttonWindow,side=tk.LEFT)
-        tk.Button(self.buttonWindow, text="Back",command=lambda: master.switch_frame(master.homepage)).pack(in_=self.buttonWindow,side=tk.LEFT)
-        tk.Button(self.buttonWindow, text="Quit",command=lambda: quit()).pack(in_=self.buttonWindow,side=tk.LEFT)
 
     def onFrameConfigure(self, event):
         """ Reset the scroll region to encompass the entire inner frame,

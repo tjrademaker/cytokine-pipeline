@@ -45,6 +45,18 @@ class WeightMatrixSelectionPage(tk.Frame):
                 if datasetName not in trainingDatasets:
                     trainingDatasets.append(datasetName)
 
+        self.buttonWindow = tk.Frame(self)
+        self.buttonWindow.pack(side=tk.BOTTOM, pady=10)
+        tk.Button(self.buttonWindow, text="OK",
+            command=lambda: collectInputs()
+            ).pack(in_=self.buttonWindow,side=tk.LEFT)
+        tk.Button(self.buttonWindow, text="Back",
+            command=lambda: master.switch_frame(master.homepage)
+            ).pack(in_=self.buttonWindow,side=tk.LEFT)
+        tk.Button(self.buttonWindow, text="Quit",
+            command=lambda: quit()
+            ).pack(in_=self.buttonWindow,side=tk.LEFT)
+
         datasetVar = tk.StringVar(value=trainingDatasets[0])
         for i,dataset in enumerate(trainingDatasets):
             rb = tk.Radiobutton(mainWindow, text=dataset,padx = 20, variable=datasetVar,value=dataset)
@@ -65,11 +77,6 @@ class WeightMatrixSelectionPage(tk.Frame):
             df_min,df_max=pd.read_pickle(path+"output/trained-networks/min_max-"+datasetName+".pkl")
             master.switch_frame(WTorMutantDatasetSelectionPage)
 
-        buttonWindow = tk.Frame(self)
-        buttonWindow.pack(side=tk.TOP,pady=10)
-        tk.Button(buttonWindow, text="OK",command=lambda: collectInputs()).pack(in_=buttonWindow,side=tk.LEFT)
-        tk.Button(buttonWindow, text="Back",command=lambda: master.switch_frame(master.homepage)).pack(in_=buttonWindow,side=tk.LEFT)
-        tk.Button(buttonWindow, text="Quit",command=lambda: quit()).pack(in_=buttonWindow,side=tk.LEFT)
 
 class WTorMutantDatasetSelectionPage(tk.Frame):
     def __init__(self, master):
@@ -84,6 +91,18 @@ class WTorMutantDatasetSelectionPage(tk.Frame):
         #Mutant List
         mutantTypeList = ["Tumor","Activation","TCellNumber","Macrophages","CAR","TCellType","CD25Mutant","ITAMDeficient","DrugPerturbation","NewPeptide"]
         datasetTypes = ['WT']+mutantTypeList
+
+        self.buttonWindow = tk.Frame(self)
+        self.buttonWindow.pack(side=tk.BOTTOM,pady=10)
+        tk.Button(self.buttonWindow, text="OK",
+            command=lambda: collectInputs()
+            ).pack(in_=self.buttonWindow,side=tk.LEFT)
+        tk.Button(self.buttonWindow, text="Back",
+            command=lambda: master.switch_frame(WeightMatrixSelectionPage,latentSpaceBool,nextSwitchPage)
+            ).pack(in_=self.buttonWindow,side=tk.LEFT)
+        tk.Button(self.buttonWindow, text="Quit",
+            command=lambda: quit()
+            ).pack(in_=self.buttonWindow,side=tk.LEFT)
 
         datasetVar = tk.StringVar(value=datasetTypes[0])
         for i,dataset in enumerate(datasetTypes):
@@ -122,11 +141,6 @@ class WTorMutantDatasetSelectionPage(tk.Frame):
                 else:
                     master.switch_frame(nextSwitchPage,df_mutant_proj,WTorMutantDatasetSelectionPage)
 
-        buttonWindow = tk.Frame(self)
-        buttonWindow.pack(side=tk.TOP,pady=10)
-        tk.Button(buttonWindow, text="OK",command=lambda: collectInputs()).pack(in_=buttonWindow,side=tk.LEFT)
-        tk.Button(buttonWindow, text="Back",command=lambda: master.switch_frame(WeightMatrixSelectionPage,latentSpaceBool,nextSwitchPage)).pack(in_=buttonWindow,side=tk.LEFT)
-        tk.Button(buttonWindow, text="Quit",command=lambda: quit()).pack(in_=buttonWindow,side=tk.LEFT)
 
 class TrainingDatasetSelectionPage(tk.Frame):
     def __init__(self, master):
@@ -144,27 +158,58 @@ class TrainingDatasetSelectionPage(tk.Frame):
         for dataName in pd.unique(sortedWT['Data']):
             trainingDatasets.append(dataName)
 
-        """BEGIN TEMP SCROLLBAR CODE"""
-        labelWindow1 = tk.Frame(self)
-        labelWindow1.pack(side=tk.TOP,padx=10,fill=tk.X,expand=True)
+        self.buttonWindow = tk.Frame(self)
+        self.buttonWindow.pack(side=tk.TOP,pady=10)
+        tk.Button(self.buttonWindow, text="OK",
+            command=lambda: collectInputs()
+            ).pack(in_=self.buttonWindow,side=tk.LEFT)
+        tk.Button(self.buttonWindow, text="Back",
+            command=lambda: master.switch_frame(WTorMutantDatasetSelectionPage)
+            ).pack(in_=self.buttonWindow,side=tk.LEFT)
+        tk.Button(self.buttonWindow, text="Quit",
+            command=lambda: quit()
+            ).pack(in_=self.buttonWindow,side=tk.LEFT)
 
-        #Make canvas
-        w1 = tk.Canvas(labelWindow1, width=600, height=400,background="white", scrollregion=(0,0,3000,1000))
 
-        #Make scrollbar
-        scr_v1 = tk.Scrollbar(labelWindow1,orient=tk.VERTICAL)
+        # Frame to contain the scrollable canvas and the scrollbars within the
+        # main window.
+        self.labelWindow1 = tk.Frame(self)
+        self.labelWindow1.pack(side=tk.TOP,padx=10,fill=tk.X,expand=tk.NO)
+
+        # Make canvas inside that frame
+        self.w1 = tk.Canvas(self.labelWindow1, borderwidth=0, width=600,
+            height=600)
+
+        # Make scrollbar in side the self.labelWindow1 frame as well
+        scr_v1 = tk.Scrollbar(self.labelWindow1, orient=tk.VERTICAL, command=self.w1.yview)
         scr_v1.pack(side=tk.RIGHT,fill=tk.Y)
-        scr_v1.config(command=w1.yview)
-        #Add scrollbar to canvas
-        w1.config(yscrollcommand=scr_v1.set)
-        w1.pack(fill=tk.BOTH,expand=True)
+        # Add and bind scrollbar to canvas
+        self.w1.config(yscrollcommand=scr_v1.set)
+        self.w1.pack(fill=tk.BOTH, expand=tk.NO)
+
+        # Make another horizontal scrollbar
+        scr_v2 = tk.Scrollbar(self.labelWindow1, orient=tk.HORIZONTAL, command=self.w1.xview)
+        scr_v2.pack(side=tk.BOTTOM, fill=tk.X)
+        self.w1.config(xscrollcommand=scr_v2.set)
+        self.w1.pack(fill=tk.BOTH, expand=tk.NO)
+
+        # Make a frame to contain the list of radio buttons inside the Canvas
+        # This is to create all buttons at once so they can be scrolled
+        self.labelWindow = tk.Frame(self.w1)
+        self.labelWindow.pack(fill=tk.BOTH, expand=tk.NO)
+        self.w1.create_window((0,0), window=self.labelWindow, anchor = tk.NW)
+
+        # Bind the label frame's <Configure> to the canvas' size
+        # See https://stackoverflow.com/questions/3085696/adding-a-scrollbar-to-a-group-of-widgets-in-tkinter
+        self.labelWindow1.bind("<Configure>", self.onFrameConfigure)
+        #labelWindow = tk.Frame(self)
+        #labelWindow.pack(side=tk.TOP,padx=10,fill=tk.X,expand=True)
 
         #Make and add frame for widgets inside of canvas
         #canvas_frame = tk.Frame(w1)
-        mainWindow = tk.Frame(w1)
+        mainWindow = tk.Frame(self.w1)
         mainWindow.pack()
-        w1.create_window((0,0),window=mainWindow, anchor = tk.NW)
-        """END TEMP SCROLLBAR CODE"""
+        self.w1.create_window((0,0),window=mainWindow, anchor = tk.NW)
 
         datasetVar = tk.StringVar(value=trainingDatasets[0])
         for i,dataset in enumerate(trainingDatasets):
@@ -201,12 +246,14 @@ class TrainingDatasetSelectionPage(tk.Frame):
             else:
                 master.switch_frame(nextSwitchPage,df_WT_proj,TrainingDatasetSelectionPage)
 
-        buttonWindow = tk.Frame(self)
-        buttonWindow.pack(side=tk.TOP,pady=10)
-        tk.Button(buttonWindow, text="OK",command=lambda: collectInputs()).pack(in_=buttonWindow,side=tk.LEFT)
-        tk.Button(buttonWindow, text="Back",command=lambda: master.switch_frame(WTorMutantDatasetSelectionPage)).pack(in_=buttonWindow,side=tk.LEFT)
-        tk.Button(buttonWindow, text="Quit",command=lambda: quit()).pack(in_=buttonWindow,side=tk.LEFT)
+    def onFrameConfigure(self, event):
+        """ Reset the scroll region to encompass the entire inner frame,
+        so no radio button labels are missing. """
+        self.w1.configure(scrollregion=self.w1.bbox("all"))
 
+    def resizeFrame(self, event):
+        width = event.width
+        self.labelWindow1.itemconfig(self)
 
 def import_mutant_output(mutant, folder=path+"data/processed/"):
     """Import processed cytokine data from experiments that contains

@@ -36,6 +36,7 @@ class InputDatasetSelectionPage(tk.Frame):
         trueLabelDict = {}
 
         #Sort by date/number/quality/quantity
+        print("Sorting all labels and levels... it can take a while")
         dataset = set_standard_order(dataset.reset_index())
         sortedValues = set_standard_order(dataset.copy(),returnSortedLevelValues=True)
 
@@ -56,31 +57,62 @@ class InputDatasetSelectionPage(tk.Frame):
         e2.grid(row=0,column=1)
         e2.insert(0, '1-72')
 
-        """BEGIN TEMP SCROLLBAR CODE"""
-        labelWindow1 = tk.Frame(self)
-        labelWindow1.pack(side=tk.TOP,padx=10,fill=tk.X,expand=True)
+        # Buttons at the bottom, pack them first so they don't disappear
+        # https://stackoverflow.com/questions/42074654/avoid-the-status-bar-footer-from-disappearing-in-a-gui-when-reducing-the-size
+        self.buttonWindow = tk.Frame(self)
+        self.buttonWindow.pack(side=tk.BOTTOM,pady=10)
 
-        #Make canvas
-        w1 = tk.Canvas(labelWindow1, width=1500, height=600,background="white", scrollregion=(0,0,3000,1200))
+        # Find the max number of level values
+        maxNumLevelValues = 0
+        for labelList in trueLabelDict.values():
+            if len(labelList) > maxNumLevelValues:
+                maxNumLevelValues = len(labelList)
 
-        #Make scrollbar
-        scr_v1 = tk.Scrollbar(labelWindow1,orient=tk.VERTICAL)
+        tk.Button(self.buttonWindow, text="OK",
+                command=lambda: collectInputs(dataset)
+            ).pack(in_=self.buttonWindow, side=tk.LEFT)
+        tk.Button(self.buttonWindow, text="Back",
+                command=lambda: master.switch_frame(master.homepage)
+            ).pack(in_=self.buttonWindow, side=tk.LEFT)
+        tk.Button(self.buttonWindow, text="Quit",
+                command=lambda: quit()
+            ).pack(in_=self.buttonWindow, side=tk.LEFT)
+
+        # Frame to contain the scrollable canvas and the scrollbars within the
+        # main window.
+        self.labelWindow1 = tk.Frame(self)
+        self.labelWindow1.pack(side=tk.TOP,padx=10,fill=tk.X,expand=tk.NO)
+
+        # Make canvas inside that frame
+        self.w1 = tk.Canvas(self.labelWindow1, borderwidth=0, width=1200,
+            height=600)
+
+        # Make scrollbar in side the self.labelWindow1 frame as well
+        scr_v1 = tk.Scrollbar(self.labelWindow1, orient=tk.VERTICAL, command=self.w1.yview)
         scr_v1.pack(side=tk.RIGHT,fill=tk.Y)
-        scr_v1.config(command=w1.yview)
-        #Add scrollbar to canvas
-        w1.config(yscrollcommand=scr_v1.set)
-        w1.pack(fill=tk.BOTH,expand=True)
+        # Add and bind scrollbar to canvas
+        self.w1.config(yscrollcommand=scr_v1.set)
+        self.w1.pack(fill=tk.BOTH, expand=tk.NO)
 
-        #Make and add frame for widgets inside of canvas
-        #canvas_frame = tk.Frame(w1)
-        labelWindow = tk.Frame(w1)
-        labelWindow.pack()
-        w1.create_window((0,0),window=labelWindow, anchor = tk.NW)
-        """END TEMP SCROLLBAR CODE"""
+        # Make another horizontal scrollbar
+        scr_v2 = tk.Scrollbar(self.labelWindow1, orient=tk.HORIZONTAL, command=self.w1.xview)
+        scr_v2.pack(side=tk.BOTTOM, fill=tk.X)
+        self.w1.config(xscrollcommand=scr_v2.set)
+        self.w1.pack(fill=tk.BOTH, expand=tk.NO)
+
+        # Make a frame to contain the list of radio buttons inside the Canvas
+        # This is to create all buttons at once so they can be scrolled
+        self.labelWindow = tk.Frame(self.w1)
+        self.labelWindow.pack(fill=tk.BOTH, expand=tk.NO)
+        self.w1.create_window((0,0), window=self.labelWindow, anchor = tk.NW)
+
+        # Bind the label frame's <Configure> to the canvas' size
+        # See https://stackoverflow.com/questions/3085696/adding-a-scrollbar-to-a-group-of-widgets-in-tkinter
+        self.labelWindow1.bind("<Configure>", self.onFrameConfigure)
         #labelWindow = tk.Frame(self)
         #labelWindow.pack(side=tk.TOP,padx=10,fill=tk.X,expand=True)
 
-        l1 = tk.Label(labelWindow, text='Parameters:',pady=10, font='Helvetica 18 bold').grid(row=0,column = 0,columnspan=len(trueLabelDict)*6)
+        l1 = tk.Label(self.labelWindow, text='Parameters:',pady=10, font='Helvetica 18 bold').grid(row=0,column = 0,columnspan=len(trueLabelDict)*6)
         levelValueCheckButtonList = []
         overallCheckButtonVariableList = []
         checkAllButtonList = []
@@ -91,24 +123,24 @@ class InputDatasetSelectionPage(tk.Frame):
             j=0
             levelCheckButtonList = []
             levelCheckButtonVariableList = []
-            levelLabel = tk.Label(labelWindow, text=levelName+':')
+            levelLabel = tk.Label(self.labelWindow, text=levelName+':')
             levelLabel.grid(row=1,column = i*6,sticky=tk.N,columnspan=5)
             for levelValue in trueLabelDict[levelName]:
                 includeLevelValueBool = tk.BooleanVar()
-                cb = tk.Checkbutton(labelWindow, text=levelValue, variable=includeLevelValueBool)
+                cb = tk.Checkbutton(self.labelWindow, text=levelValue, variable=includeLevelValueBool)
                 cb.grid(row=j+4,column=i*6+2,columnspan=2,sticky=tk.W)
-                labelWindow.grid_columnconfigure(i*6+3,weight=1)
+                self.labelWindow.grid_columnconfigure(i*6+3,weight=1)
                 cb.select()
                 levelCheckButtonList.append(cb)
                 levelCheckButtonVariableList.append(includeLevelValueBool)
                 j+=1
 
-            checkAllButton1 = checkUncheckAllButton(labelWindow,levelCheckButtonList, text='Check All')
+            checkAllButton1 = checkUncheckAllButton(self.labelWindow,levelCheckButtonList, text='Check All')
             checkAllButton1.configure(command=checkAllButton1.checkAll)
             checkAllButton1.grid(row=2,column=i*6,sticky=tk.N,columnspan=3)
             checkAllButtonList.append(checkAllButton1)
 
-            uncheckAllButton1 = checkUncheckAllButton(labelWindow,levelCheckButtonList, text='Uncheck All')
+            uncheckAllButton1 = checkUncheckAllButton(self.labelWindow,levelCheckButtonList, text='Uncheck All')
             uncheckAllButton1.configure(command=checkAllButton1.uncheckAll)
             uncheckAllButton1.grid(row=2,column=i*6+3,sticky=tk.N,columnspan=3)
             uncheckAllButtonList.append(checkAllButton1)
@@ -168,13 +200,15 @@ class InputDatasetSelectionPage(tk.Frame):
 
             proj_df = df_WT_proj.iloc[::5,:]
             master.switch_frame(selectLevelsPage,proj_df,InputDatasetSelectionPage)
+    def onFrameConfigure(self, event):
+        """ Reset the scroll region to encompass the entire inner frame,
+        so no radio button labels are missing. """
+        self.w1.configure(scrollregion=self.w1.bbox("all"))
 
-        buttonWindow = tk.Frame(self)
-        buttonWindow.pack(side=tk.TOP,pady=10)
+    def resizeFrame(self, event):
+        width = event.width
+        self.labelWindow1.itemconfig(self)
 
-        tk.Button(buttonWindow, text="OK",command=lambda: collectInputs(dataset)).grid(row=maxNumLevelValues+4,column=0)
-        tk.Button(buttonWindow, text="Back",command=lambda: master.switch_frame(master.homepage)).grid(row=maxNumLevelValues+4,column=1)
-        tk.Button(buttonWindow, text="Quit",command=lambda: quit()).grid(row=maxNumLevelValues+4,column=2)
 
 def import_WT_output(folder=path+"data/processed/"):
     """Import splines from wildtype naive OT-1 T cells by looping through all datasets
